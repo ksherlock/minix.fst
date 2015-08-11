@@ -1,0 +1,252 @@
+
+
+	include 'gsos.equ'
+	include 'minix.equ'
+	include 'fst.equ'
+
+	include 'fst.macros'
+
+	include 'M16.Debug'
+
+
+	; id_disk
+	; identify disk in device.  
+	;
+	; inputs: 
+	; a = device id
+	;
+	; outputs:
+	; (registers)
+	; c = 1 for error
+	; a = error code or 0
+	; (dp)
+	; my_vcr
+	;
+
+	entry check_super
+	entry build_vcr
+
+	import device_read
+
+
+id_disk	procname	export
+
+	;
+	; read the superblock
+	;
+	;
+	; note - minix has 1024-k blocks.  I'm only reading 512
+	; since there's nothing of interest in the second half of the
+	; superblock.
+
+	with dev_parms
+	with v1
+
+	sta dev_num
+
+	lda #512
+	sta dev_blk_size
+	lda #SUPER_BLOCK*2
+	sta dev_blk_num
+
+	lda #512
+	sta dev_req_cnt
+
+	jsr device_read
+	bcs exit
+
+	jsr check_super
+	bcs exit
+
+	jsr build_vcr
+	bcs exit
+
+	; error priority $8000?
+	lda #0
+	clc
+exit
+	rts
+
+
+	endp
+
+	;
+	; checks if the super block is valid for minix.
+	; returns a = error / 0
+	;
+check_super	procname
+
+	with dev_parms
+	with v1_super
+	with dp
+
+check_magic
+	ldy #magic
+	lda [dev_buff],y
+	cmp #v1.MAGIC
+	beq @ok
+	cmp #v1L.MAGIC
+	bne no
+@ok
+check_log_zone
+	; should be 0
+	ldy #log_zone_size
+	lda [dev_buff],y
+	bne no
+
+yes
+	clc
+	rts
+no
+	lda #unknown_vol
+	sec
+	rts
+	endp
+
+build_vcr	procname
+
+	; for now, volume hard coded as 'minix'.
+
+	with v1
+	with dp
+
+	ldx #default_name
+	ldy #^default_name
+	lda #0
+	jsl find_vcr
+	bcs create_vcr
+	jsl deref
+
+	stx my_vcr
+	sty my_vcr+2
+	ldy #vcr.fst_id
+	lda [my_vcr],y
+	cmp #fst_id
+	bne dump_vcr
+
+	ldy #vcr.status
+	lda [my_vcr],y
+	and #vcr_swapped
+	beq @exit
+
+	and #vcr_swapped_in
+	sta [my_vcr],y
+
+	lda device
+	ldy #vcr.device
+	sta [my_vcr],y
+
+@exit
+	lda #0
+	clc
+	rts
+
+dump_vcr
+	; vcr exists for the filename but it's not mine.
+	; if inactive, kick it out.  otherwise, return dup error.
+
+	;
+	; todo -- prodos fst has kludge for change path which
+	; allows duplicates if using a device name or something...
+	;
+
+	ldy #vcr.open_count
+	lda [my_vcr],y
+	beq @dump
+
+	lda #dup_volume
+	sec
+	rts
+
+@dump
+	ldy #vcr.id
+	lda [my_vcr],y
+	jsl release_vcr
+	; drop through.
+
+create_vcr
+	lda #vcr.sizeof
+	ldx #default_name
+	ldy #^default_name
+	jsl alloc_vcr
+	lda #out_of_mem
+	bcs exit
+
+	jsl deref
+	stx my_vcr
+	sty my_vcr+2
+
+	lda #0
+	ldy #vcr.status
+	sta [my_vcr],y
+	ldy #vcr.open_count
+	sta [my_vcr],y
+
+	lda #fst_id
+	ldy #vcr.fst_id
+	sta [my_vcr],y
+
+	lda dev_parms.dev_num
+	ldy #vcr.device
+	sta [my_vcr],y
+
+	; copy over the super block...
+	clc
+	lda #vcr.super
+	adc my_vcr
+	sta ptr
+	lda #0
+	adc my_vcr+2
+	sta ptr+2
+
+	ldy #v1_super.sizeof-2
+@loop
+	lda [dev_parms.dev_buff],y
+	sta [ptr],y
+	dey
+	dey
+	bpl @loop
+
+
+	;
+	; boot
+	; super
+	; imap blocks
+	; zmap blocks
+	; inodes
+	; zones
+
+
+	; calculate offsets
+	lda #2 ; hard-coded.
+	ldy #vcr.first_imap_block
+	sta [my_vcr],y
+
+	clc
+	ldy #vcr.super.imap_blocks
+	adc [my_vcr],y
+	ldy #vcr.first_zmap_block
+	sta [my_vcr],y
+
+	clc
+	ldy #vcr.super.zmap_blocks
+	adc [my_vcr],y
+	ldy #vcr.first_inode_block
+	sta [my_vcr],y
+
+
+	~DebugHexDump <my_vcr,#vcr.sizeof 
+
+	lda #0
+	clc
+exit
+	rts
+
+default_name
+	str.w 'minix'
+
+	endp
+
+	end
+
+	

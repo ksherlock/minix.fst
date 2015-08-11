@@ -1,0 +1,288 @@
+
+
+	include 'gsos.equ'
+	include 'minix.equ'
+	include 'fst.equ'
+
+	include 'fst.macros'
+
+	include 'M16.Debug'
+
+
+	entry app_entry
+	entry sys_entry
+	entry sys_startup
+	entry sys_shutdown
+
+	entry rtl_invalid_fst_op
+	entry rtl_bad_system_call
+	entry rtl_no_error
+	entry rtl_invalid_pcount
+
+	import judge_name
+	import create
+	import destroy
+	import change_path
+	import set_file_info
+	import get_file_info
+	import volume
+	import open
+	import read
+	import write
+	import flush
+	import close
+	import get_mark
+	import set_mark
+	import get_eof
+	import set_eof
+	import get_dir_entry
+	import get_dev_num
+	import format
+	import erase_disk
+
+header	proc
+
+	;
+	; FST attributes
+	; case-insensitive = $8000 [dispatcher should upper case]
+	; character device = $4000
+	; format = $2000
+	; clear high bits = $1000
+	; read-only = $0800
+
+	dc.b 'FST '
+	dc.l app_entry
+	dc.l sys_entry
+	dc.w fst_id
+	dc.w $2002		; flags -- format, block device, non-apple format
+	dc.w $0100		; version 1.0
+	dc.w 1024		; block size
+	dc.l $ffffffff		; max blocks/volume
+	dc.l $00000006		; min blocks/volume
+	dc.l $10081c00		; max file size
+	dc.l 0			; reserved
+	str.b 'minix'		; FST Name
+	str.b 'minix FST'	; FST Comment
+	dc.w 0
+
+	; credits
+	str.b $0d,'Minix FST by Kelvin W Sherlock, 2014',$0d
+
+	endp
+
+data	record
+
+	export global_buffer
+global_buffer ds.l 1
+
+	endr
+
+sys_entry	procname
+
+	phk
+	plb
+	rep #$30
+
+	cpx #max_sys_call+1
+	bge rtl_no_error
+
+	jmp (@sys_table,x)
+
+@sys_table
+	dc.w rtl_no_error
+	dc.w sys_startup
+	dc.w sys_shutdown
+	dc.w rtl_no_error	; remove vcr
+	dc.w rtl_no_error	; deferred flush
+max_sys_call	equ *-@sys_table-2
+
+	endp
+
+
+
+rtl_no_error	proc
+	lda #0
+	clc
+	rtl
+	endp
+
+
+rtl_invalid_fst_op	proc
+	lda #invalid_fst_op
+	sec
+	rtl
+	endp
+
+rtl_bad_system_call	proc
+	lda #bad_system_call
+	sec
+	rtl
+	endp
+
+rtl_invalid_pcount	proc
+	lda #invalid_pcount
+	sec
+	rtl
+	endp
+
+
+sys_startup procname
+	
+	jsl get_sys_gbuf
+	stx global_buffer
+	sty global_buffer+2
+	lda #0
+	clc
+	rtl
+
+	endp
+
+sys_shutdown procname
+
+	lda #0
+	clc
+	rtl
+
+	endp
+
+	; x = call number * 2
+	; y = class number * 2
+app_entry	procname
+
+	with dp
+	with fst_parms
+
+	import min_pcount
+	import max_pcount
+
+	phk
+	plb
+	rep #$30
+
+
+	IF DEBUG_S16 THEN
+	jsr debug
+	ENDIF
+
+	;brk $42
+
+	sty <call_class
+
+	
+	; check the class 0 or 1 only.
+	cpy #2+1
+	bge @bad_system_call
+
+	cpx #max_app_call+1 ; 66+1
+	bge @bad_system_call
+
+	; class 1 -- check the pcount maximum.
+	cpy #2
+	bne @ok
+
+	lda [param_blk_ptr]
+	; gs/os already checks the minimum and verifies non-null names, etc.
+	;cmp min_pcount,x
+	;blt @invalid_pcount
+	cmp max_pcount,x
+	bge @invalid_pcount
+
+@ok
+
+	; init stuff
+	lda global_buffer
+	sta io_buffer
+	sta dev_parms.dev_buff
+
+	lda global_buffer+2
+	sta io_buffer+2
+	sta dev_parms.dev_buff+2
+
+
+	stz <tool_error
+	stz <device
+
+	; fake an rtl address for sys_exit
+	; otherwise, would need to jml sys_exit from functions.
+	pea |(sys_exit-1)>>8
+	phb
+	lda #<sys_exit-1
+	sta 1,s
+
+	; call it...
+	jmp (@app_table,x)
+
+
+@bad_system_call
+	lda #bad_system_call
+	sec
+	rtl
+
+@invalid_pcount
+	lda #invalid_pcount
+	sec
+	rtl
+
+
+
+@app_table
+	dc.w rtl_bad_system_call	; 
+	dc.w create			; ($01) Create
+	dc.w destroy			; ($02) Destroy
+	dc.w rtl_bad_system_call	; ($03) OS Shutdown
+	dc.w change_path		; ($04) Change Path
+	dc.w set_file_info		; ($05) Set File Info
+	dc.w get_file_info		; ($06) Get File Info
+	dc.w judge_name			; ($07) Judge Name
+	dc.w volume			; ($08) Volume
+	dc.w rtl_bad_system_call	; ($09) Set Prefix
+	dc.w rtl_bad_system_call	; ($0A) Get Prefix
+	dc.w rtl_invalid_fst_op		; ($0B) Clear Backup Bit
+	dc.w rtl_bad_system_call	; ($0C) Set Sys Prefs
+	dc.w rtl_no_error		; ($0D) Null
+	dc.w rtl_bad_system_call	; ($0E) Expand Path
+	dc.w rtl_bad_system_call	; ($0F) Get Sys Prefs
+	dc.w open			; ($10) Open
+	dc.w rtl_bad_system_call	; ($11) NewLine
+	dc.w read			; ($12) Read
+	dc.w write			; ($13) Write
+	dc.w close			; ($14) Close
+	dc.w flush			; ($15) Flush
+	dc.w set_mark			; ($16) Set Mark
+	dc.w get_mark			; ($17) Get Mark
+	dc.w set_eof			; ($18) Set EOF
+	dc.w get_eof			; ($19) Get EOF
+	dc.w rtl_bad_system_call	; ($1A) Set Level
+	dc.w rtl_bad_system_call	; ($1B) Get Level
+	dc.w get_dir_entry		; ($1C) Get Dir Entry
+	dc.w rtl_bad_system_call	; ($1D) Begin Session
+	dc.w rtl_bad_system_call	; ($1E) End Session
+	dc.w rtl_bad_system_call	; ($1F) Session Status
+	dc.w get_dev_num		; ($20) Get Dev Num
+	dc.w rtl_bad_system_call	; ($21) Get Last Dev
+	dc.w rtl_bad_system_call	; ($22) Read Block
+	dc.w rtl_bad_system_call	; ($23) Write Block
+	dc.w format			; ($24) Format
+	dc.w erase_disk			; ($25) Erase Disk
+	dc.w rtl_bad_system_call	; ($26) Reset Cache
+	dc.w rtl_bad_system_call	; ($27) Get Name
+	dc.w rtl_bad_system_call	; ($28) Get Boot Vol
+	dc.w rtl_bad_system_call	; ($29) Quit
+	dc.w rtl_bad_system_call	; ($2A) Get Version
+	dc.w rtl_bad_system_call	; ($2B) Get FST Info
+	dc.w rtl_bad_system_call	; ($2C) D_INFO
+	dc.w rtl_bad_system_call	; ($2D) D_STATUS
+	dc.w rtl_bad_system_call	; ($2E) D_CONTROL
+	dc.w rtl_bad_system_call	; ($2F) D_READ
+	dc.w rtl_bad_system_call	; ($30) D_WRITE
+	dc.w rtl_bad_system_call	; ($31) Alloc Interrupt
+	dc.w rtl_bad_system_call	; ($32) Dealloc Interrupt
+	dc.w rtl_invalid_fst_op		; ($33) FST Specific
+max_app_call	equ *-@app_table-2
+
+
+	endp
+
+
+
+	end

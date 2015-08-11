@@ -1,0 +1,78 @@
+
+                	; my direct page.
+dp              	record $0080
+
+io_buffer		ds.l 1
+ptr			ds.l 1 ; misc ptr
+
+my_vcr          	ds.l 1
+my_fcr          	ds.l 1
+call_class      	ds.w 1
+
+
+
+device			ds.w 1 ; device for id_disk.
+tool_error		ds.w 1
+
+
+inode			ds.w 1
+parent_inode		ds.w 1
+
+disk_inode		ds v1_inode
+
+
+			IF *>=$d4 THEN
+			AERROR 'dp -- too large.'
+			ENDIF
+                	endr
+
+
+fcr			record 0
+ref_num			ds.w 1
+path_name		ds.l 1
+fst_id			ds.w 1
+vol_id			ds.w 1
+level			ds.w 1
+newline			ds.l 1
+newline_length		ds.w 1
+mask			ds.w 1
+access			ds.w 1
+
+			; fst-specific items
+
+ino			ds.w 1
+inode			ds v1_inode
+dirty			ds.w 1
+
+mark			ds.l 1 ; current position
+
+
+
+sizeof			equ *
+			endr
+
+vcr			record 0
+id			ds.w 1
+name			ds.l 1
+status			ds.w 1
+open_count		ds.w 1
+fst_id			ds.w 1
+device			ds.w 1
+fst_ptr			ds.l 1
+
+			; fst-specific items
+
+
+			; super block elements.
+
+super			ds v1_super
+first_inode_block	ds.w 1
+first_imap_block	ds.w 1
+first_zmap_block	ds.w 1
+
+sizeof			equ *
+			endr
+
+
+
+fst_id	equ 'mx'

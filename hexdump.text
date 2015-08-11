@@ -1,0 +1,96 @@
+00000000  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|                                          
+*
+0000-0400 - boot block
+
+00000400  20 01 20 03 01 00 01 00  0d 00 00 00 00 1c 08 10  | . .............|                                          
+00000410  7f 13 01 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|                                          
+00000420  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|                                          
+*                                                                                                                       
+400-800 -- super block
+
+super		record 0
+
+inodes		$0120
+nzones		$0320
+imap_blocks	$0001
+zmap_blocks	$0001
+firstdatazone	$000d
+log_zone_size	$0000
+max_size	10081c00
+magic		137f
+		ds.w 1 ; padding ???
+zones		1 ? 0?
+
+		endr
+
+
+
+
+
+
+
+
+
+00000800  03 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|                                          
+00000810  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|                                          
+00000820  00 00 00 00 fe ff ff ff  ff ff ff ff ff ff ff ff  |................|                                          
+00000830  ff ff ff ff ff ff ff ff  ff ff ff ff ff ff ff ff  |................|                                          
+*                                                                                                                       
+800-c00 - inode map block ($0120 inodes / 1024 = 1 block)
+
+00000c00  03 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|                                          
+00000c10  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|                                          
+*                                                                                                                       
+00000c60  00 00 f0 ff ff ff ff ff  ff ff ff ff ff ff ff ff  |................|                                          
+00000c70  ff ff ff ff ff ff ff ff  ff ff ff ff ff ff ff ff  |................|
+*
+c00--1000 zone map ($0320 zones / 1024 = 1 block)
+
+
+mode = 41ed
+uid = 03e8
+size = 2
+time = 52ec17be
+gid = e8
+nlinks = 02
+zones = [0d]
+
+
+32 bytes total. -- 32 nodes per block.
+
+
+00001000  ed 41 e8 03 20 00 00 00  be 17 ec 52 e8 02 0d 00  |.A.. ......R....|
+00001010  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+*
+1000 -- 1000+2400 -- inode table ($120 inodes * 16 bytes / 1024 = 4068 / 1024 = 5 blocks)
+
+
+3400 = block 13 = $0x0d
+
+[{01, '.'}, {01, '..'}]
+[{0, 'badblocks'}] ???
+00003400  01 00 2e 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+00003410  01 00 2e 2e 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+00003420  00 00 2e 62 61 64 62 6c  6f 63 6b 73 00 00 00 00  |...badblocks....|
+00003430  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+*
+000c8000
+
+3400--end = data zones
+
+
+
+range	record 0
+location	ds.w 1
+length	ds.w 1
+	endr
+
+vcr
+{
+magic	ds.w 1 ; 
+inode_map	ds range
+zone_map	ds range
+inode_table	ds range
+zone_table	ds range
+data_table	ds range
+}

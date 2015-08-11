@@ -1,0 +1,122 @@
+
+	case on
+	string asis
+
+tables		record
+
+			export min_pcount
+			export max_pcount
+			
+max_pcount
+			dc.w	0
+			dc.w	8				; ($01) Create
+			dc.w	2				; ($02) Destroy
+			dc.w	0				; ($03) OS Shutdown
+			dc.w	4				; ($04) Change Path
+			dc.w	13				; ($05) Set File Info
+			dc.w	13				; ($06) Get File Info
+			dc.w	0				; ($07)
+			dc.w	7				; ($08) Volume
+			dc.w	0				; ($09) Set Prefix
+			dc.w	0				; ($0A) Get Prefix
+			dc.w	2				; ($0B) Clear Backup Bit
+			dc.w	0				; ($0C) Set Sys Prefs
+			dc.w	0				; ($0D) Null
+			dc.w	0				; ($0E) Expand Path
+			dc.w	0				; ($0F) Get Sys Prefs
+			dc.w	16				; ($10) Open
+			dc.w	0				; ($11) NewLine
+			dc.w	6				; ($12) Read
+			dc.w	6				; ($13) Write
+			dc.w	2				; ($14) Close
+			dc.w	2				; ($15) Flush
+			dc.w	4				; ($16) Set Mark
+			dc.w	3				; ($17) Get Mark
+			dc.w	4				; ($18) Set EOF
+			dc.w	3				; ($19) Get EOF
+			dc.w	0				; ($1A) Set Level
+			dc.w	0				; ($1B) Get Level
+			dc.w	18				; ($1C) Get Dir Entry
+			dc.w	0				; ($1D)
+			dc.w	0				; ($1E)
+			dc.w	0				; ($1F)
+			dc.w	3				; ($20) Get Dev Num
+			dc.w	0				; ($21) Get Last Dev
+			dc.w	0				; ($22) Read Block
+			dc.w	0				; ($23) Write Block
+			dc.w	5				; ($24) Format
+			dc.w	5				; ($25) Erase Disk
+			dc.w	0				; ($26)
+			dc.w	0				; ($27) Get Name
+			dc.w	0				; ($28) Get Boot Vol
+			dc.w	0				; ($29) Quit
+			dc.w	0				; ($2A) Get Version
+			dc.w	0				; ($2B) Get FST Info
+			dc.w	0				; ($2C) D_INFO
+			dc.w	0				; ($2D) D_STATUS
+			dc.w	0				; ($2E) D_CONTROL
+			dc.w	0				; ($2F) D_READ
+			dc.w	0				; ($30) D_WRITE
+			dc.w	0				; ($31) Alloc Interrupt
+			dc.w	0				; ($32) Dealloc Interrupt
+			dc.w	4				; ($33) FST Specific
+
+min_pcount
+			dc.w	0
+			dc.w	1				; ($01) Create
+			dc.w	1				; ($02) Destroy
+			dc.w	0				; ($03) OS Shutdown
+			dc.w	2				; ($04) Change Path
+			dc.w	2				; ($05) Set File Info
+			dc.w	2				; ($06) Get File Info
+			dc.w	0				; ($07)
+			dc.w	2				; ($08) Volume
+			dc.w	0				; ($09) Set Prefix
+			dc.w	0				; ($0A) Get Prefix
+			dc.w	1				; ($0B) Clear Backup Bit
+			dc.w	0				; ($0C) Set Sys Prefs
+			dc.w	0				; ($0D) Null
+			dc.w	0				; ($0E) Expand Path
+			dc.w	0				; ($0F) Get Sys Prefs
+			dc.w	2				; ($10) Open
+			dc.w	0				; ($11) NewLine
+			dc.w	4				; ($12) Read
+			dc.w	4				; ($13) Write
+			dc.w	1				; ($14) Close
+			dc.w	1				; ($15) Flush
+			dc.w	3				; ($16) Set Mark
+			dc.w	2				; ($17) Get Mark
+			dc.w	3				; ($18) Set EOF
+			dc.w	2				; ($19) Get EOF
+			dc.w	0				; ($1A) Set Level
+			dc.w	0				; ($1B) Get Level
+			dc.w	5				; ($1C) Get Dir Entry
+			dc.w	0				; ($1D)
+			dc.w	0				; ($1E)
+			dc.w	0				; ($1F)
+			dc.w	2				; ($20) Get Dev Num
+			dc.w	0				; ($21) Get Last Dev
+			dc.w	0				; ($22) Read Block
+			dc.w	0				; ($23) Write Block
+			dc.w	3				; ($24) Format
+			dc.w	3				; ($25) Erase Disk
+			dc.w	0				; ($26)
+			dc.w	0				; ($27) Get Name
+			dc.w	0				; ($28) Get Boot Vol
+			dc.w	0				; ($29) Quit
+			dc.w	0				; ($2A) Get Version
+			dc.w	0				; ($2B) Get FST Info
+			dc.w	0				; ($2C) D_INFO
+			dc.w	0				; ($2D) D_STATUS
+			dc.w	0				; ($2E) D_CONTROL
+			dc.w	0				; ($2F) D_READ
+			dc.w	0				; ($30) D_WRITE
+			dc.w	0				; ($31) Alloc Interrupt
+			dc.w	0				; ($32) Dealloc Interrupt
+			dc.w	1				; ($33) FST Specific
+
+
+			endr
+
+
+			end

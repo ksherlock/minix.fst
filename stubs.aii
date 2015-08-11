@@ -1,0 +1,49 @@
+	include 'gsos.equ'
+stubs	proc
+
+	export judge_name
+	export create
+	export destroy
+	export change_path
+	export set_file_info
+	export open
+	export read
+	export write
+	export flush
+	export close
+	export get_mark
+	export set_mark
+	export get_eof
+	export set_eof
+	export get_dir_entry
+	export get_dev_num
+	export format
+	export erase_disk
+
+
+judge_name
+create
+destroy
+change_path
+set_file_info
+get_file_info
+open
+read
+write
+flush
+close
+get_mark
+set_mark
+get_eof
+set_eof
+get_dir_entry
+get_dev_num
+format
+erase_disk
+
+
+	lda #invalid_fst_op
+	sec
+	rtl
+	endp
+	end

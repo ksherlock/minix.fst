@@ -1,0 +1,154 @@
+
+; minix V1 (L)
+; uses 30-char filenames
+
+
+BLOCK_SIZE	equ 1024
+BOOT_BLOCK	equ 0
+SUPER_BLOCK	equ 1
+
+
+v1		record 0
+MAGIC		equ $137F
+DIRSIZE		equ 14
+
+NR_DZONES	equ 7	; 7 direct zones
+NR_TZONES	equ 9	; 9 total zones
+
+; too big...
+;MAX_FILE_SIZE	equ $10081c00
+
+		endr
+
+
+
+
+v1_super	record 0
+
+ninodes		ds.w 1
+nzones		ds.w 1
+imap_blocks	ds.w 1
+zmap_blocks	ds.w 1
+firstdatazone	ds.w 1
+log_zone_size	ds.w 1
+max_size	ds.l 1
+magic		ds.w 1
+sizeof		equ *
+		endr
+
+
+v1_inode	record 0
+
+mode		ds.w 1
+uid		ds.w 1
+size		ds.l 1
+mtime		ds.l 1
+gid		ds.b 1
+nlinks		ds.b 1
+zone		ds.w v1.NR_TZONES
+sizeof		equ *
+
+		endr
+
+v1_dirent	record 0
+inode		ds.w 1
+name		ds.b v1.DIRSIZE
+sizeof		equ *
+		endr
+
+
+; v1 (Linux)
+v1L		record 0
+MAGIC		equ $138F
+DIRSIZE		equ 30
+
+		endr
+
+
+
+
+; version 2
+v2		record 0
+
+NR_DZONES	equ 7
+NR_TZONES	equ 10
+MAGIC		equ $2468
+DIRSIZE		equ 14
+
+;MAX_FILE_SIZE	equ $7fffffff
+		endr
+
+v2_super	record 0
+
+inodes		ds.w 1
+nzones		ds.w 1
+imap_blocks	ds.w 1
+zmap_blocks	ds.w 1
+firstdatazone	ds.w 1
+log_zone_size	ds.w 1
+max_size	ds.l 1
+magic		ds.w 1
+		ds.w 1 ; padding
+zones		ds.l 1
+
+sizeof		equ *
+		endr
+
+
+v2_inode	record 0
+mode		ds.w 1
+nlinks		ds.w 1
+uid		ds.w 1
+gid		ds.w 1
+size		ds.l 1
+atime		ds.l 1
+mtime		ds.l 1
+ctime		ds.l 1
+zone		ds.l v2.NR_TZONES
+sizeof		equ *
+		endr
+
+
+v2_dirent	record 0
+inode		ds.w 1
+name		ds.b v2.DIRSIZE
+sizeof		equ *
+		endr
+
+
+; v2 (Linux)
+v2l		record 0
+
+MAGIC		equ $2478
+DIRSIZE		equ 30
+		endr
+
+
+; sys/stat equates
+
+
+S_IFMT		equ $f000  ; type of file
+S_IFLNK		equ $a000  ; symbolic link, not implemented
+S_IFREG		equ $8000  ; regular
+S_IFBLK		equ $6000  ; block special
+S_IFDIR		equ $4000  ; directory
+S_IFCHR		equ $2000  ; character special
+S_IFIFO		equ $1000  ; this is a FIFO
+S_ISUID		equ $0800  ; set user id on execution
+S_ISGID		equ $0400  ; set group id on execution
+
+
+S_IRWXU		equ $01c0  ; owner:  rwx------
+S_IRUSR		equ $0100  ; owner:  r--------
+S_IWUSR		equ $0080  ; owner:  -w-------
+S_IXUSR		equ $0040  ; owner:  --x------
+
+S_IRWXG		equ $0038  ; group:  ---rwx---
+S_IRGRP		equ $0020  ; group:  ---r-----
+S_IWGRP		equ $0010  ; group:  ----w----
+S_IXGRP		equ $0008  ; group:  -----x---
+
+S_IRWXO		equ $0007  ; others: ------rwx
+S_IROTH		equ $0004  ; others: ------r--
+S_IWOTH		equ $0002  ; others: -------w-
+S_IXOTH		equ $0001  ; others: --------x

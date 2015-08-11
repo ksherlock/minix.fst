@@ -1,0 +1,520 @@
+
+
+	include 'gsos.equ'
+	include 'minix.equ'
+	include 'fst.equ'
+
+	include 'fst.macros'
+
+	include 'M16.Debug'
+
+
+
+TimeRec		RECORD 0
+second		DS.B 1
+minute		DS.B 1
+hour		DS.B 1
+year		DS.B 1
+day		DS.B 1
+month		DS.B 1
+extra		DS.B 1
+weekDay		DS.B 1
+		ENDR
+
+FileInfoRecGS	RECORD	0
+pCount		DS.W	1
+pathname	DS.L	1
+access		DS.W	1
+fileType	DS.W	1
+auxType		DS.L	1
+storageType	DS.W	1
+createDateTime  DS	TimeRec
+modDateTime	DS	TimeRec
+optionList	DS.L	1
+eof		DS.L	1
+blocksUsed	DS.L	1
+resourceEOF	DS.L	1
+resourceBlocks	DS.L	1
+		ENDR
+
+
+FileRec		RECORD 0
+pathname	DS.B 4
+fAccess		DS.B 2
+fileType	DS.B 2
+auxType		DS.B 4
+storageType	DS.B 2
+createDate	DS.B 2
+createTime	DS.B 2
+modDate		DS.B 2
+modTime		DS.B 2
+blocksUsed	DS.B 4
+		ENDR
+
+		entry path_to_inode
+		import id_disk
+		import device_read
+
+
+get_file_info	procname export
+
+	with fst_parms
+	with dev_parms
+	with dp
+
+
+	jsr path_to_inode
+	bcc @inode
+	rtl
+@inode
+	; we have an inode.  and my_vcr is valid.
+	; we need to actually _load_ the inode.
+
+	; todo -- check if inode # is valid?
+	; todo -- check if bit set in imap?
+
+	;pha ; space
+	;~DebugSetTrace #1
+	;pla ; prev value
+
+
+	ldy #vcr.first_inode_block
+	lda [my_vcr],y
+	asl a ; x 2
+	sta dev_blk_num
+
+	; 32 inodes per block.
+	; however, I'd rather read half-block chunks, with means
+	; 16 inodes per half-block.
+	lda inode
+	dec a ; inode 1 is offset 0.
+	lsr a ; / 2
+	lsr a ; / 4
+	lsr a ; / 8
+	lsr a ; / 16
+	;lsr a ; / 32
+
+	clc
+	adc dev_blk_num
+	sta dev_blk_num
+
+	lda #512
+	sta dev_req_cnt
+
+
+	lda device
+	sta dev_num
+
+	jsr device_read
+	bcc ok
+	rtl
+ok
+
+	; find the inode...
+	lda inode
+	dec a ; inode 1 is offset 0.
+	and #$0f
+	; multiply by 32
+	asl a ; x 2
+	asl a ; x 4
+	asl a ; x 8
+	asl a ; x 16
+	asl a ; x 32
+	clc
+	adc io_buffer
+	sta ptr
+	lda #0
+	adc io_buffer+2
+	sta ptr+2
+
+	; copy to dp
+	ldy #0
+	ldx #0
+@loop
+	lda [ptr],y
+	sta disk_inode,x
+	inx
+	inx
+	iny
+	iny
+	cpy #v1_inode.sizeof
+	blt @loop
+
+
+	;pha ; space
+	;~DebugSetTrace #0
+	;pla ; prev value
+
+
+	lda <call_class
+	beq class0
+
+
+class1
+	lda [param_blk_ptr] ; pcount
+	dec a
+	asl a ; x 2
+	asl a ; x 4
+	tax
+	dispatch file_info_dcb_1
+	lda tool_error
+	cmp #0
+	rtl
+
+class0
+	ldx #(8-1)*4
+	dispatch file_info_dcb_0
+	lda tool_error
+	cmp #0
+	rtl
+
+
+	import do_ignore
+	import do_access
+	import do_create_date_time, do_mod_date_time
+	import do_create_date_time_0, do_mod_date_time_0
+	import do_option_list
+	import do_file_type, do_aux_type, do_storage_type
+	import do_eof, do_blocks, do_r_eof, do_r_blocks
+
+file_info_dcb_0
+	dc.w $00, do_ignore ; pathname
+	dc.w $04, do_access
+	dc.w $06, do_file_type
+	dc.w $08, do_aux_type
+	dc.w $0c, do_storage_type
+	dc.w $0e, do_create_date_time_0
+	dc.w $12, do_mod_date_time_0
+	dc.w $16, do_blocks
+
+file_info_dcb_1
+	;dc.w $00, do_ignore	; pCount
+	dc.w $02, do_ignore ; pathname
+	dc.w $06, do_access
+	dc.w $08, do_file_type
+	dc.w $0a, do_aux_type
+	dc.w $0e, do_storage_type
+	dc.w $10, do_create_date_time
+	dc.w $18, do_mod_date_time
+	dc.w $20, do_option_list
+	dc.w $24, do_eof
+	dc.w $28, do_blocks
+	dc.w $2c, do_r_eof
+	dc.w $30, do_r_blocks
+	endp
+
+do_access	proc
+	with dp,fst_parms
+
+	lda disk_inode.mode
+	lda #$c3 ; ehh
+	sta [param_blk_ptr],y
+	rts
+	endp
+
+do_storage_type	proc
+	with dp,fst_parms
+
+	lda disk_inode.mode
+	; check for directory.  GS/OS doesn't have concepts for other types (yet).
+
+	and #S_IFMT
+	cmp #S_IFDIR
+	beq dir
+	lda #1
+	bra store
+
+dir
+	lda #$0d
+
+store
+	sta [param_blk_ptr],y
+	rts
+
+	endp
+
+do_file_type proc
+
+	with dp,fst_parms
+
+	lda disk_inode.mode
+	and #S_IFMT
+	cmp #S_IFDIR
+	beq dir
+	cmp #S_IFREG
+	beq reg
+
+unknown
+	lda #$00
+	bra store
+
+dir
+	lda #$0f
+	bra store
+
+reg
+	lda #$06 ; binary
+	bra store
+
+store
+	sta [param_blk_ptr],y
+	rts
+
+
+
+	endp
+
+do_aux_type proc
+	with dp,fst_parms
+
+	lda #0
+	sta [param_blk_ptr],y
+	rts
+
+	endp
+
+do_eof	proc
+	with dp,fst_parms
+
+	lda disk_inode.size
+	sta [param_blk_ptr],y
+
+	iny
+	iny
+	lda disk_inode.size+2
+	sta [param_blk_ptr],y
+	rts
+
+	endp
+
+do_blocks proc
+	with dp,fst_parms
+	with v1
+
+	phx ; save
+	phy ; save
+
+	; 7 direct blocks, 1 indirect block, 1 double indirect block.
+	ldx #0
+	ldy #0 ; count
+@loop
+	lda disk_inode.zone,x
+	beq @next
+	iny
+@next
+	inx
+	inx
+	cpx #NR_DZONES*2
+	bcc @loop
+
+	; y is number of direct blocks.
+
+	; check for indirect block...
+	lda disk_inode.zone + NR_DZONES * 2
+	beq dib
+
+;
+; count up indirect blocks...
+;
+	iny
+
+dib
+	; check for double indirect block
+	lda disk_inode.zone + (NR_DZONES + 1) * 2
+	beq store
+;
+; count up double indirect blocks....
+;
+
+	iny
+
+store
+	tya
+	ply
+	sta [param_blk_ptr],y
+	iny
+	iny
+	lda #0
+	sta [param_blk_ptr],y
+
+	plx ; restore
+	rts
+	endp
+
+
+do_r_eof proc
+	with dp,fst_parms
+
+	entry do_r_blocks
+do_r_blocks
+	lda #0
+	sta [param_blk_ptr],y
+	iny
+	iny
+	sta [param_blk_ptr],y
+	rts
+	endp
+
+
+do_option_list proc
+	with dp,fst_parms
+
+	; if the option list is present, store my fst id.
+
+	lda [param_blk_ptr],y
+	sta ptr
+	iny
+	iny
+	lda [param_blk_ptr],y
+	sta ptr+2
+
+	ora ptr
+	beq exit
+
+	; check if the option list ptr is large enough.
+	lda [ptr]
+	cmp #4
+	bcc pre
+
+	; store the size of the option list.
+	ldy #2
+	lda #2
+	sta [ptr],y	
+
+
+	lda [ptr]
+	cmp #6
+	bcc bts
+	bra ok
+
+	; less than 4 is a parm range error.
+	; less than the necessary option list size is a buf_too_small error. (but store the space required)
+
+
+pre
+	lda #parm_range_err
+	sta tool_error
+	bra exit
+
+bts
+
+	lda #buff_too_small
+	sta tool_error
+	bra exit
+
+ok
+	ldy #4
+	lda #fst_id
+	sta [ptr],y
+
+
+exit
+	rts
+	endp
+
+
+do_create_date_time_0	proc
+	with fst_parms
+
+	; todo ...
+
+	entry do_mod_date_time_0
+do_mod_date_time_0
+
+	lda #0
+	sta [param_blk_ptr],y
+	iny
+	iny
+	sta [param_blk_ptr],y
+
+	rts
+	endp
+
+
+do_create_date_time	proc
+	with fst_parms
+
+	; todo ...
+
+	entry do_mod_date_time
+do_mod_date_time
+
+	lda #0
+	sta [param_blk_ptr],y
+	iny
+	iny
+	sta [param_blk_ptr],y
+	iny
+	iny
+	sta [param_blk_ptr],y
+	iny
+	iny
+	sta [param_blk_ptr],y
+
+	rts
+	endp
+
+
+path_to_inode	proc
+	with dp,fst_parms
+
+
+path	equ path1_ptr
+dev_num	equ dev1_num
+
+	stz inode
+	lda #1
+	sta parent_inode
+
+	lda path_flag
+	and #$4000
+	bne check_path
+
+
+no_path
+	; device only (eg, .dev1 )
+	; 
+	lda #1
+	sta inode
+
+	lda dev_num
+	beq bps
+	sta device
+	jmp id_disk
+	; returns
+bps
+	lda #bad_path_syntax
+	sec
+	rts
+
+check_path
+	; but is it relative?
+
+	lda [path]
+	and #$00ff
+	cmp #':'
+	beq absolute
+
+	lda #1
+	sta inode
+
+	lda dev_num
+	bne bps
+	jsr id_disk
+	rts
+
+absolute
+	;
+	; worst case ... 
+	; 1. extract the volume name.
+	; 2. call find_vcr to find it by name
+	; 3. if that fails, scan all devices.
+
+	lda #1
+	sta inode
+	clc
+	rts
+	
+	endp
+
+	end

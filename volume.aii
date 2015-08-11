@@ -1,0 +1,307 @@
+	include 'gsos.equ'
+	include 'minix.equ'
+	include 'fst.equ'
+
+	include 'fst.macros'
+
+	include 'M16.Debug'
+
+	;
+	; VolumeGS / Volume call.
+	;
+	; check if the disk is ours.  create a VCR or mark it active.
+	;
+	; P16
+	; devName
+	; volName
+	; totalBlocks
+	; freeBlocks
+	; fileSysID
+	;
+	; GS/OS
+	; Word pCount;
+	; GSString32Ptr devName;
+	; ResultBuf255Ptr volName;
+	; LongWord totalBlocks;
+	; LongWord freeBlocks;
+	; Word fileSysID;
+	; Word blockSize;
+	; [handled by gs/os:]
+	; Word characteristics;
+	; Word deviceID;     
+	;
+
+	import id_disk
+
+
+VolumeRecGS	RECORD	0
+pCount		DS.W	1
+devName		DS.L	1			; GSString32Ptr
+volName		DS.L	1			; ResultBuf255Ptr
+totalBlocks	DS.L	1
+freeBlocks	DS.L	1
+fileSysID	DS.W	1
+blockSize	DS.W	1
+characteristics	ds.w	1
+deviceID	ds.w	1
+sizeof		equ *
+		ENDR
+
+
+VolumeRec	RECORD 0 ; ProDOS
+deviceName	DS.B 4 ; Ptr - 
+volName		DS.B 4 ; Ptr - 
+totalBlocks	DS.B 4 ; Long - 
+freeBlocks	DS.B 4 ; Long - 
+fileSysID	DS.B 2 ; Word - 
+sizeof		equ *
+		ENDR
+
+
+	entry do_block_size
+	entry do_file_sys_id
+	entry do_free_blocks
+	entry do_ignore
+	entry do_total_blocks
+	entry do_vol_name_0
+	entry do_vol_name_1
+
+volume	procname	export
+
+	with dp
+	with dev_parms
+	with fst_parms
+	
+	stz tool_error
+
+	lda dev_num
+	jsr id_disk
+	bcc got_it
+	cmp #dup_volume
+	beq dup
+	sec
+	rtl
+
+dup
+	; this is a duplicate volume.
+	; return the name (and only the name), but also return the error.
+
+	lda <call_class
+	beq dup_0
+
+dup_1
+	ldy #VolumeRecGS.volName
+	jsr do_vol_name_1
+	bcs exit
+	lda #dup_volume
+	bra exit
+
+dup_0
+	ldy #VolumeRec.volName
+	jsr do_vol_name_0
+	bcs exit
+	lda #dup_volume
+	bra exit
+
+
+got_it
+
+	lda <call_class
+	beq class0
+
+
+class1
+	lda [param_blk_ptr] ; pcount
+	dec a
+	asl a ; x 2
+	asl a ; x 4
+	tax
+	dispatch volume_dcb_1
+	lda tool_error
+	cmp #1
+	rtl
+
+class0
+	ldx #(5-1)*4
+	dispatch volume_dcb_0
+	lda tool_error
+
+exit
+	cmp #1
+	rtl
+
+
+volume_dcb_0
+	dc.w VolumeRec.deviceName, do_ignore
+	dc.w VolumeRec.volName, do_vol_name_0
+	dc.w VolumeRec.totalBlocks, do_total_blocks
+	dc.w VolumeRec.freeBlocks, do_free_blocks
+	dc.w VolumeRec.fileSysID, do_file_sys_id
+
+volume_dcb_1
+	dc.w VolumeRecGS.devName, do_ignore
+	dc.w VolumeRecGS.volName, do_vol_name_1
+	dc.w VolumeRecGS.totalBlocks, do_total_blocks
+	dc.w VolumeRecGS.freeBlocks, do_free_blocks
+	dc.w VolumeRecGS.fileSysID, do_file_sys_id
+	dc.w VolumeRecGS.blockSize, do_block_size
+	dc.w VolumeRecGS.characteristics, do_ignore
+	dc.w VolumeRecGS.deviceID, do_ignore
+	endp
+
+
+do_ignore	proc export
+	rts
+	endp
+
+do_file_sys_id	proc
+
+	with dp
+	with fst_parms
+
+	lda #fst_id
+	sta [param_blk_ptr],y
+	rts
+	endp
+
+do_block_size	proc
+
+	with dp
+	with fst_parms
+
+	lda #1024
+	sta [param_blk_ptr],y
+	rts
+	endp
+
+do_total_blocks	proc
+	; total blocks = 2 + imap_blocks + zmap_blocks + nzones. I think.
+
+	with dp
+	with fst_parms
+
+	phy ; save
+
+	lda #2 ; boot block, super block.
+	clc
+
+	; pull from vcr?
+	ldy #vcr.super.nzones
+	adc [my_vcr],y
+	ldy #vcr.super.imap_blocks
+	adc [my_vcr],y
+	ldy #vcr.super.zmap_blocks
+	adc [my_vcr],y
+
+	ply
+	sta [param_blk_ptr],y
+	rts
+
+	endp
+
+
+do_free_blocks	proc
+	; load the  zmaps and count them up...
+	; someday.
+	with fst_parms
+
+	lda #0
+	sta [param_blk_ptr],y
+	rts
+	endp
+
+do_vol_name_0	proc
+	; store the volume name (class 0)
+
+	with fst_parms
+	with dp
+
+	;ldy #VolumeRec.volName
+	lda [param_blk_ptr],y
+	sta ptr
+	iny
+	iny
+	lda [param_blk_ptr],y
+	sta ptr+2
+
+	lda #0
+	short m
+	lda defaultName ; count.
+	tax
+	tay
+@loop
+	lda defaultName,x
+	sta [ptr],y
+	dex
+	dey
+	bpl @loop
+done
+	long m
+	clc
+	rts
+
+
+defaultName	str.b ':minix'
+	endp
+
+do_vol_name_1	proc
+
+	with fst_parms
+	with dp
+
+	;ldy #VolumeRecGS.volName
+	lda [param_blk_ptr],y
+	sta ptr
+	iny
+	iny
+	lda [param_blk_ptr],y
+	sta ptr+2	
+
+	; check the length.
+	lda [ptr]
+	sec
+	sbc #4
+	bmi error
+
+	cmp defaultName
+	bcc error_store_size
+
+	;ldy #2
+	lda defaultName
+	;sta [ptr],y
+
+	inc a ; +1 for length word. 
+	tax
+
+	inc a ; skip buffer size.
+	inc a
+	tay
+	short m
+@loop
+	lda defaultName,x
+	sta [ptr],y
+	dey
+	dex
+	bpl @loop
+
+done
+	long m
+	clc
+	rts
+
+error_store_size
+	lda defaultName
+	ldy #2
+	sta [ptr],y
+error
+	lda #buff_too_small
+	sta tool_error
+	sec
+	rts
+
+defaultName	str.w ':minix'
+
+	endp
+
+	end
+

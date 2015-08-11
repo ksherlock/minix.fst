@@ -1,0 +1,38 @@
+	include 'gsos.equ'
+
+
+device_rw proc
+
+	; inputs: a = call num
+	; outputs: carry, a
+
+	with dev_parms
+
+	sta dev_callnum
+
+loop
+	jsl dev_dispatcher
+	bcc exit
+	cmp #drvr_disk_sw
+	beq loop
+	cmp #drvr_busy
+	beq loop
+	sec
+
+exit
+	rts
+	endp
+
+device_read proc export
+
+	lda #drvr_read
+	bra device_rw
+	endp
+
+device_write proc export
+	lda #drvr_write
+	bra device_rw
+	endp
+
+	end
+

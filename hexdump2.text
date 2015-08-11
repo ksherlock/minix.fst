@@ -1,0 +1,101 @@
+qnap:/tmp# mkfs.minix -1 -v minix.disk 
+
+272 inodes
+800 blocks
+Firstdatazone=21 (21)
+Zonesize=1024
+Maxsize=2147483647
+
+
+
+qnap:/tmp# cat badblocks 
+100
+101
+102
+103
+104
+105
+106
+107
+108
+109
+100
+
+
+qnap:/tmp# mkfs.minix -1  -l badblocks  minix.disk 
+288 inodes
+800 blocks
+Firstdatazone=13 (13)
+Zonesize=1024
+Maxsize=268966912
+
+11 bad blocks
+
+inodes = blocks / 3
+inode size = 32
+direct size = 32 (max length = 30)
+
+00000000  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................| << boot block
+*
+00000400  20 01 20 03 01 00 01 00  0d 00 00 00 00 1c 08 10  | . .............| << super block
+00000410  8f 13 01 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+
+0120 nodes
+0320 zones
+0001 inode map blocks
+0001 zone map blocks
+000d first data zone
+0000 log 2 (zone size / block size)
+10081c00 -- max file size
+138f -- magic
+0001 -- state
+
+
+/* minix_super_block.s_state */
+#define MINIX_VALID_FS       0x0001          /* Clean fs. */
+#define MINIX_ERROR_FS       0x0002          /* fs has errors. */
+
+
+#define MINIX_SUPER_MAGIC    0x137F          /* minix V1 fs, 14 char names */
+#define MINIX_SUPER_MAGIC2   0x138F          /* minix V1 fs, 30 char names */
+
+#define MINIX2_SUPER_MAGIC   0x2468	     /* minix V2 fs, 14 char names */
+#define MINIX2_SUPER_MAGIC2  0x2478	     /* minix V2 fs, 30 char names */
+
+#define MINIX3_SUPER_MAGIC   0x4d5a          /* minix V3 fs (60 char names) */
+
+
+00000420  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+*
+00000800  07 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................| << inode map  7 = 0x0000 0111 -- node 0, node 1, node 2
+00000810  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+00000820  00 00 00 00 fe ff ff ff  ff ff ff ff ff ff ff ff  |................|
+00000830  ff ff ff ff ff ff ff ff  ff ff ff ff ff ff ff ff  |................|
+*
+00000c00  07 00 00 00 00 00 00 00  00 00 00 ff 03 00 00 00  |................| << zone map { blocks 0, blocks 1, block 2 }, 
+00000c10  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+*
+00000c60  00 00 f0 ff ff ff ff ff  ff ff ff ff ff ff ff ff  |................|
+00000c70  ff ff ff ff ff ff ff ff  ff ff ff ff ff ff ff ff  |................|
+*
+00001000  ed 41 00 00 60 00 00 00  cf d4 c4 55 00 02 0d 00  |.A..`......U....| << inode 1
+00001010  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+00001020  00 80 00 00 00 2c 00 00  cf d4 c4 55 00 01 64 00  |.....,.....U..d.| << inode 2
+00001030  65 00 66 00 67 00 68 00  69 00 6a 00 0e 00 00 00  |e.f.g.h.i.j.....|
+00001040  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+*
+
+block d
+00003400  01 00 2e 00 00 00 00 00  00 00 00 00 00 00 00 00  |................| << { 1, . }
+00003410  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+00003420  01 00 2e 2e 00 00 00 00  00 00 00 00 00 00 00 00  |................| << { 1, .. }
+00003430  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+00003440  02 00 2e 62 61 64 62 6c  6f 63 6b 73 00 00 00 00  |...badblocks....| << { 2, .badblocks }
+00003450  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+*
+
+block e
+00003800  6b 00 6c 00 6d 00 00 00  00 00 00 00 00 00 00 00  |k.l.m...........| << indirect block
+00003810  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+*
+000c8000
