@@ -73,7 +73,6 @@ get_file_info	procname export
 	; todo -- check if inode # is valid?
 	; todo -- check if bit set in imap?
 
-	;pha ; space
 	;~DebugSetTrace #1
 	;pla ; prev value
 

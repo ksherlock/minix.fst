@@ -143,8 +143,21 @@
 
 
 	macro
-&l	_DebugSetTrace
+&l	_DebugGetTrace
 &l	ldx #$10ff
+	jsl $e10000
+	mend
+
+	macro
+&l	~DebugGetTrace
+&l	ldx #$10ff
+	jsl $e10000
+	mend
+
+
+	macro
+&l	_DebugSetTrace
+&l	ldx #$11ff
 	jsl $e10000
 	mend
 
@@ -152,7 +165,7 @@
 	macro
 &l	~DebugSetTrace &p1
 &l	ph2 &p1
-	ldx #$10ff
+	ldx #$11ff
 	jsl $e10000
 	mend
 
