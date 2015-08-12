@@ -82,7 +82,7 @@ class1
 	rtl
 
 class0
-	ldx #(5-1)*4
+	ldx #volume_dcb_0_size-4
 	dispatch volume_dcb_0
 	lda tool_error
 
@@ -97,6 +97,7 @@ volume_dcb_0
 	dc.w VolumeRec.totalBlocks, do_total_blocks
 	dc.w VolumeRec.freeBlocks, do_free_blocks
 	dc.w VolumeRec.fileSysID, do_file_sys_id
+volume_dcb_0_size equ *-volume_dcb_0
 
 volume_dcb_1
 	dc.w VolumeRecGS.devName, do_ignore
