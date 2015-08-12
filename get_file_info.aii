@@ -88,17 +88,16 @@ ok
 	sta ptr+2
 
 	; copy to dp
-	ldy #0
-	ldx #0
+	ldy #v1_inode.sizeof-2
+	ldx #v1_inode.sizeof-2
 @loop
 	lda [ptr],y
 	sta disk_inode,x
-	inx
-	inx
-	iny
-	iny
-	cpy #v1_inode.sizeof
-	blt @loop
+	dey
+	dey
+	dex
+	dex
+	bpl @loop
 
 
 	;pha ; space
@@ -108,7 +107,6 @@ ok
 
 	lda <call_class
 	beq class0
-
 
 class1
 	lda [param_blk_ptr] ; pcount
@@ -122,7 +120,7 @@ class1
 	rtl
 
 class0
-	ldx #(8-1)*4
+	ldx #file_info_dcb_0_size-4
 	dispatch file_info_dcb_0
 	lda tool_error
 	cmp #0
@@ -146,6 +144,7 @@ file_info_dcb_0
 	dc.w $0e, do_create_date_time_0
 	dc.w $12, do_mod_date_time_0
 	dc.w $16, do_blocks
+file_info_dcb_0_size equ *-file_info_dcb_0
 
 file_info_dcb_1
 	;dc.w $00, do_ignore	; pCount
@@ -250,6 +249,9 @@ do_eof	proc
 do_blocks proc
 	with dp,fst_parms
 	with v1
+
+	; not sure if minix supports sparse blocks.  could just estimate
+	; based on file size.
 
 	phx ; save
 	phy ; save
