@@ -13,15 +13,204 @@
 
 open	procname export
 
+	with fst_parms
+
 	; find the inode...
 
 	; sanity check the parameters.
+	jsr check_resource
+	bcs exit
+
+	jsr check_access
+	bcs exit
 
 
-	lda #file_not_found
-	sec
+	; now create the fcr.
+	jsr build_fcr
+	bcs exit
+
+	; output fields...
+
+	lda <call_class
+	beq class0
+
+class1
+	lda [param_blk_ptr] ; pcount
+	dec a
+	asl a ; x 2
+	asl a ; x 4
+	tax
+	dispatch open_dcb_1
+	lda tool_error
+	cmp #0
 	rtl
 
+class0
+	ldx #open_dcb_0_size-4
+	dispatch open_dcb_0
+	lda tool_error
+	cmp #0
+	rtl
+
+exit
+	rtl
+
+open_dcb_0
+	dc.w 0, do_refnum
+	; all remaining fields are read-only.
+open_dcb_0_size equ *-open_dcb_0
+
+open_dcb_1
+	;dc.w 0, do_ignore	; pCount
+	dc.w $02, do_refnum	; refNum 
+	dc.w $04, do_ignore	; path
+	dc.w $08, do_ignore	; request access
+	dc.w $0a, do_ignore	; resource resourceNumber
+	dc.w $0c, do_access	; actual access
+	dc.w $0e, do_file_type
+	dc.w $10, do_aux_type
+	dc.w $14, do_storage_type
+	dc.w $16, do_create_date_time
+	dc.w $1e, do_mod_date_time
+	dc.w $26, do_option_list
+	dc.w $2a, do_eof
+	dc.w $2e, do_blocks
+	dc.w $32, do_r_eof
+	dc.w $36, do_r_blocks
+
+
+	endp
+
+build_fcr proc
+
+	
+	; build filename string...
+	lda #fcr.sizeof
+	ldx #0
+	ldy #0
+	jsl alloc_fcr
+	bcc @ok
+	lda #out_of_mem
+	rts
+@ok
+
+	jsl deref
+	stx my_fcr
+	sty my_fcr+2
+
+	ldy #vcr.open_count
+	lda [my_vcr],y
+	inc
+	sta [my_vcr],y
+
+	lda #read_access
+	ldy #fcr.access
+	sta [my_fcr],y
+
+	lda #fst_id
+	ldy #fcr.fst_id
+	sta [my_fcr],y
+
+
+	ldy #vcr.id
+	lda [my_vcr],y
+	ldy #fcr.vcr_id
+	sta [my_fcr],y
+
+	lda inode
+	ldy #fcr.ino
+	sta [my_fcr],y
+
+	lda #0
+	ldy #fcr.dirty
+	sta [my_fcr],y
+
+	ldy #fcr.mark
+	sta [my_fcr],y
+	iny
+	iny
+	sta [my_fcr],y
+	
+	; copy the disk inode
+
+	ldx #v1_inode.sizeof-2
+	ldy #vcr.disk_inode + v1_inode.sizeof - 2
+
+@loop
+	lda disk_inode,x
+	sta [my_fcr],y
+	dey
+	dey 
+	dex
+	dex
+	bpl @loop
+
+	clc
+	rts
+	endp
+
+
+check_resource	procname
+	; verify the resourceNumber is ok
+	; sets a/carry on error.
+
+	with fstparms, dp
+
+	lda <call_class
+	beq done
+
+	lda [<param_blk_ptr] ; pcount
+	cmp #4
+	blt done
+	ldy #OpenRecGS.resourceNumber
+	lda [<param_blk_ptr],y
+	beq done
+	cmp #1
+	bne param_range
+
+	lda #res_not_found
+	sec
+	rts
+
+param_range
+	lda #parm_range_err
+	sec
+	rts
+
+done
+	clc
+	rts
+	endp
+
+check_access	procname
+
+	with fst_parms
+
+	; todo .... 
+	; for now, read-only.
+
+	; class 0 ok
+	; class 1 w/ pcount < 4 ok
+	lda class
+	beq done
+	lda [param_blk_ptr]
+	cmp #4
+	bcc done
+
+	ldy #OpenRecGS.requestAccess
+	lda [param_blk_ptr],y
+
+	; 0 or 1 are acceptable.
+	cmp #2
+	bcc done
+
+	lda #invalid_access
+	sec
+	rts
+
+done
+	clc
+	rts
 	endp
 
 	end
