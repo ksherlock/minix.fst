@@ -128,15 +128,17 @@ DIRSIZE		equ 30
 
 
 S_IFMT		equ $f000  ; type of file
+S_IFWHT		equ $e000  ; union white out.
+S_IFSOCK	equ $c000  ; unix domain socket
 S_IFLNK		equ $a000  ; symbolic link, not implemented
 S_IFREG		equ $8000  ; regular
 S_IFBLK		equ $6000  ; block special
 S_IFDIR		equ $4000  ; directory
 S_IFCHR		equ $2000  ; character special
 S_IFIFO		equ $1000  ; this is a FIFO
+
 S_ISUID		equ $0800  ; set user id on execution
 S_ISGID		equ $0400  ; set group id on execution
-
 
 S_IRWXU		equ $01c0  ; owner:  rwx------
 S_IRUSR		equ $0100  ; owner:  r--------

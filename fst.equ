@@ -28,10 +28,10 @@ disk_inode		ds v1_inode
 
 
 fcr			record 0
-ref_num			ds.w 1
+id			ds.w 1	; ref num
 path_name		ds.l 1
 fst_id			ds.w 1
-vol_id			ds.w 1
+vcr_id			ds.w 1
 level			ds.w 1
 newline			ds.l 1
 newline_length		ds.w 1
@@ -41,7 +41,7 @@ access			ds.w 1
 			; fst-specific items
 
 ino			ds.w 1
-inode			ds v1_inode
+disk_inode		ds v1_inode
 dirty			ds.w 1
 
 mark			ds.l 1 ; current position

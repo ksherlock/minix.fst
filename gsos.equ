@@ -238,25 +238,25 @@ dev_dib_ptr	ds.l	1		; pointer to DIB
 
 
                 ; gs/os direct page.
-fst_parms        record $0030
-call_number     ds.w 1         ; FST call number
-param_blk_ptr   ds.l 1         ; pointer to user's parameter block
+fst_parms	record $0030
+call_number	ds.w 1		; FST call number
+param_blk_ptr	ds.l 1		; pointer to user's parameter block
 
-;dev_num                        ; device number from parameter block
-dev1_num        ds.w 1         ; alias name for dev_num
+;dev_num			; device number from parameter block
+dev1_num	ds.w 1		; alias name for dev_num
 
-dev2_num        ds.w 1         ; second device number
+dev2_num	ds.w 1		; second device number
 
-path1_ptr                      ; ptr to 1st partial/entire pathname
-fcr_ptr         ds.l 1         ; pointer to file control record
+path1_ptr			; ptr to 1st partial/entire pathname
+fcr_ptr		ds.l 1		; pointer to file control record
 
-path2_ptr                      ; ptr to 2nd partial/entire pathname
-vcr_ptr         ds.l 1         ; pointer to volume control record
+path2_ptr			; ptr to 2nd partial/entire pathname
+vcr_ptr		ds.l 1		; pointer to volume control record
 
-path_flag       ds.w 1         ; flag for path information
-span1           ds.w 1         ; largest distance between path1 term.
-span2           ds.w 1         ; max dist. between separators for path2
-                endr
+path_flag	ds.w 1		; flag for path information
+span1		ds.w 1		; largest distance between path1 term.
+span2		ds.w 1		; max dist. between separators for path2
+		endr
 
 
 
