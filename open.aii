@@ -11,9 +11,29 @@
 	include 'records.equ'
 
 
+	import do_ignore
+	import do_refnum
+	import do_file_type
+	import do_aux_type
+	import do_storage_type
+	import do_option_list
+	import do_eof
+	import do_blocks
+	import do_r_eof
+	import do_r_blocks
+	import do_create_date_time
+	import do_mod_date_time
+
+	entry do_fcr_access
+	entry check_resource
+	entry check_access
+	entry build_fcr
+
 open	procname export
 
 	with fst_parms
+	with dev_parms
+	with dp
 
 	; find the inode...
 
@@ -66,7 +86,7 @@ open_dcb_1
 	dc.w $04, do_ignore	; path
 	dc.w $08, do_ignore	; request access
 	dc.w $0a, do_ignore	; resource resourceNumber
-	dc.w $0c, do_access	; actual access
+	dc.w $0c, do_fcr_access	; actual access
 	dc.w $0e, do_file_type
 	dc.w $10, do_aux_type
 	dc.w $14, do_storage_type
@@ -83,7 +103,8 @@ open_dcb_1
 
 build_fcr proc
 
-	
+	with dp
+
 	; build filename string...
 	lda #fcr.sizeof
 	ldx #0
@@ -100,7 +121,7 @@ build_fcr proc
 
 	ldy #vcr.open_count
 	lda [my_vcr],y
-	inc
+	inc a
 	sta [my_vcr],y
 
 	lda #read_access
@@ -133,8 +154,8 @@ build_fcr proc
 	
 	; copy the disk inode
 
-	ldx #v1_inode.sizeof-2
-	ldy #vcr.disk_inode + v1_inode.sizeof - 2
+	ldx #disk_inode.sizeof-2
+	ldy #fcr.disk_inode + fcr.disk_inode.sizeof - 2 ; is sizeof updated?
 
 @loop
 	lda disk_inode,x
@@ -154,7 +175,7 @@ check_resource	procname
 	; verify the resourceNumber is ok
 	; sets a/carry on error.
 
-	with fstparms, dp
+	with fst_parms, dp
 
 	lda <call_class
 	beq done
@@ -182,16 +203,27 @@ done
 	rts
 	endp
 
+do_fcr_access	procname
+	with fst_parms, dp
+
+	phy
+	ldy #fcr.access
+	lda [my_fcr],y
+	ply
+	sta [param_blk_ptr],y
+	rts
+	endp
+
 check_access	procname
 
-	with fst_parms
+	with fst_parms, dp
 
 	; todo .... 
 	; for now, read-only.
 
 	; class 0 ok
 	; class 1 w/ pcount < 4 ok
-	lda class
+	lda call_class
 	beq done
 	lda [param_blk_ptr]
 	cmp #4

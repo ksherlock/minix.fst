@@ -18,10 +18,11 @@
 
 
 
+	import do_file_sys_id
+	import do_ignore
+
 	entry do_block_size
-	entry do_file_sys_id
 	entry do_free_blocks
-	entry do_ignore
 	entry do_total_blocks
 	entry do_vol_name_0
 	entry do_vol_name_1
@@ -111,19 +112,6 @@ volume_dcb_1
 	endp
 
 
-do_ignore	proc export
-	rts
-	endp
-
-do_file_sys_id	proc
-
-	with dp
-	with fst_parms
-
-	lda #fst_id
-	sta [param_blk_ptr],y
-	rts
-	endp
 
 do_block_size	proc
 
