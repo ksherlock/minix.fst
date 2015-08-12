@@ -6,56 +6,16 @@
 
 	include 'M16.Debug'
 
+	include 'records.equ'
+
 	;
 	; VolumeGS / Volume call.
 	;
 	; check if the disk is ours.  create a VCR or mark it active.
 	;
-	; P16
-	; devName
-	; volName
-	; totalBlocks
-	; freeBlocks
-	; fileSysID
-	;
-	; GS/OS
-	; Word pCount;
-	; GSString32Ptr devName;
-	; ResultBuf255Ptr volName;
-	; LongWord totalBlocks;
-	; LongWord freeBlocks;
-	; Word fileSysID;
-	; Word blockSize;
-	; [handled by gs/os:]
-	; Word characteristics;
-	; Word deviceID;     
-	;
 
 	import id_disk
 
-
-VolumeRecGS	RECORD	0
-pCount		DS.W	1
-devName		DS.L	1			; GSString32Ptr
-volName		DS.L	1			; ResultBuf255Ptr
-totalBlocks	DS.L	1
-freeBlocks	DS.L	1
-fileSysID	DS.W	1
-blockSize	DS.W	1
-characteristics	ds.w	1
-deviceID	ds.w	1
-sizeof		equ *
-		ENDR
-
-
-VolumeRec	RECORD 0 ; ProDOS
-deviceName	DS.B 4 ; Ptr - 
-volName		DS.B 4 ; Ptr - 
-totalBlocks	DS.B 4 ; Long - 
-freeBlocks	DS.B 4 ; Long - 
-fileSysID	DS.B 2 ; Word - 
-sizeof		equ *
-		ENDR
 
 
 	entry do_block_size
