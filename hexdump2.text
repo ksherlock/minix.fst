@@ -99,3 +99,16 @@ block e
 00003810  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
 *
 000c8000
+
+
+
+
+
+
+symbolic links: regular file but only 1 block is allowed.  block stores raw text (may be a dangling link).
+
+white out, fifo, unix domain socket, etc:
+no blocks on disk.
+
+character device, block device:
+zone 0 stores the major/minor device type.  No blocks on disk.
