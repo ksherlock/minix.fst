@@ -177,16 +177,56 @@ do_storage_type	proc
 	lda disk_inode.mode
 	; check for directory.  GS/OS doesn't have concepts for other types (yet).
 
+	phx ; save
+	and #S_IFMT ; $f000
+	xba
+	lsr a
+	lsr a
+	lsr a
+	tax
+	jsr (table,x)
+
+table
+	dc.w unknown
+	dc.w fifo
+	dc.w chr
+	dc.w unknown
+	dc.w dir
+	dc.w unknown
+	dc.w blk
+	dc.w unknown
+	dc.w reg
+	dc.w unknown
+	dc.w lnk
+	dc.w unknown
+	dc.w sock
+	dc.w unknown
+	dc.w wht
+	dc.w unknown
+
+unknown
+	lda #0
+	bra store
+fifo:
+chr:
+blk:
+lnk:
+sock:
+wht:
+	lda disk_inode.mode
 	and #S_IFMT
-	cmp #S_IFDIR
-	beq dir
-	lda #1
 	bra store
 
 dir
 	lda #$0d
+	bra store
+
+reg
+	lda #1 ; could base it on size but whatever!
+	; drop through
 
 store
+	plx ; restore
 	sta [param_blk_ptr],y
 	rts
 
