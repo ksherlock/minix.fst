@@ -1,0 +1,27 @@
+
+
+	include 'gsos.equ'
+	include 'minix.equ'
+	include 'fst.equ'
+
+	include 'fst.macros'
+
+	include 'M16.Debug'
+
+	include 'records.equ'
+
+
+open	procname export
+
+	; find the inode...
+
+	; sanity check the parameters.
+
+
+	lda #file_not_found
+	sec
+	rtl
+
+	endp
+
+	end
