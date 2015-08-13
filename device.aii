@@ -34,5 +34,41 @@ device_write proc export
 	bra device_rw
 	endp
 
+
+	;
+	; inputs: a = block number. (1024 blocks)
+	;
+	;
+read_data_block proc export
+	with dev_parms
+	; reads a data block.
+	; block 0 -> all zeros (sparse support)
+
+	cmp #0
+	bne read_it
+
+	; a = 0!
+	ldy #1024-2
+loop
+	sta [dev_buff],y
+	dey
+	dey
+	bpl loop
+
+	clc
+	rts
+
+read_it
+	sta dev_blk_num
+	stz dev_blk_num+2
+
+	lda #1024
+	sta dev_blk_size
+	sta dev_req_cnt
+	stz dev_req_cnt+2
+
+	bra device_read
+	endp
+
 	end
 
