@@ -201,6 +201,7 @@ write_enabled	equ	$0002		;1=Write Enabled
 backup_enabled	equ	$0020		;1=Needs to be backed up
 rename_enabled	equ	$0040		;1=Rename allowed
 destroy_enabled	equ	$0080		;1=Destroy is enabled
+
 read_access	equ	$01
 write_access	equ	$02
 invis_bit	equ	$04

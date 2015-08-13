@@ -24,6 +24,7 @@ NR_TZONES	equ 9	; 9 total zones
 
 
 v1_super	record 0
+__begin		equ *
 
 ninodes		ds.w 1
 nzones		ds.w 1
@@ -33,11 +34,15 @@ firstdatazone	ds.w 1
 log_zone_size	ds.w 1
 max_size	ds.l 1
 magic		ds.w 1
-sizeof		equ *
+
+__end		equ *
+__sizeof	equ __end - __begin
+
 		endr
 
 
 v1_inode	record 0
+__begin		equ *
 
 mode		ds.w 1
 uid		ds.w 1
@@ -46,14 +51,19 @@ mtime		ds.l 1
 gid		ds.b 1
 nlinks		ds.b 1
 zone		ds.w v1.NR_TZONES
-sizeof		equ *
 
+__end		equ *
+__sizeof	equ __end - __begin
 		endr
 
 v1_dirent	record 0
+__begin		equ *
+
 inode		ds.w 1
 name		ds.b v1.DIRSIZE
-sizeof		equ *
+
+__end		equ *
+__sizeof	equ __end - __begin
 		endr
 
 
@@ -65,7 +75,16 @@ DIRSIZE		equ 30
 		endr
 
 
+v1L_dirent	record 0
+__begin		equ *
 
+inode		ds.w 1
+name		ds.b v1L.DIRSIZE
+
+__end		equ *
+__sizeof	equ __end - __begin
+
+		endr
 
 ; version 2
 v2		record 0
@@ -79,6 +98,7 @@ DIRSIZE		equ 14
 		endr
 
 v2_super	record 0
+__begin		equ *
 
 inodes		ds.w 1
 nzones		ds.w 1
@@ -91,11 +111,16 @@ magic		ds.w 1
 		ds.w 1 ; padding
 zones		ds.l 1
 
-sizeof		equ *
+__end		equ *
+__sizeof	equ __end - __begin
+
+
 		endr
 
 
 v2_inode	record 0
+__begin		equ *
+
 mode		ds.w 1
 nlinks		ds.w 1
 uid		ds.w 1
@@ -105,14 +130,22 @@ atime		ds.l 1
 mtime		ds.l 1
 ctime		ds.l 1
 zone		ds.l v2.NR_TZONES
-sizeof		equ *
+
+__end		equ *
+__sizeof	equ __end - __begin
+
 		endr
 
 
 v2_dirent	record 0
+__begin		equ *
+
 inode		ds.w 1
 name		ds.b v2.DIRSIZE
-sizeof		equ *
+
+__end		equ *
+__sizeof	equ __end - __begin
+
 		endr
 
 

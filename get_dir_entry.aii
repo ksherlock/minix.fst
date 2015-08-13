@@ -1,0 +1,308 @@
+
+	include 'gsos.equ'
+	include 'minix.equ'
+	include 'fst.equ'
+
+	include 'fst.macros'
+
+	include 'M16.Debug'
+
+	include 'records.equ'
+
+
+gde_dp	record	dp
+
+
+displacement	ds.w 1
+count		ds.w 1
+dirent_size	ds.w 1
+
+	IF *>=$d4 THEN
+	AERROR 'dp -- too large.'
+	ENDIF
+	endr
+
+	endr
+
+get_dir_entry	procname	export
+
+	with fst_parms
+	with dp
+	with gde_dp
+
+
+	ldx <fcr_ptr
+	ldy <fcr_ptr+2
+	jsl deref
+	stx <my_fcr
+	sty <my_fcr+2
+
+
+	; check for read-access
+	ldy #fcr.access
+	lda [<my_fcr],y
+
+	and #read_access
+	bne access_ok
+
+	lda #invalid_access
+	sec
+	rtl
+
+access_ok
+	; is it a dir?
+	ldy #fcr.disk_inode.mode
+	lda [my_fcr],y
+	and #S_IFMT
+	cmp #S_IFDIR
+	beq dir
+
+	lda #bad_store_type
+	sec
+	rtl
+
+dir
+
+	jsr init
+	jst get_base_displace
+	bcc @ok
+	rtl
+
+@ok
+
+
+	; hooray!  it's a directory.
+	; boo! we have to do all this work!
+
+	; now need to handle the base/displacement 
+	; base 0 - use displacement
+	; base 1 - use  current position + displacement
+	; base 2 - use current position - displacement
+	; 0/0 resets the current displacement to 0 and 
+	; returns the total number of entries in the entryNum
+
+
+	endp
+
+
+init	proc
+
+	with fst_parms,dp,gde_dp
+
+	lda device
+	sta dev_parms.dev_num
+
+	lda #1024
+	sta dev_parms.dev_blk_size
+	sta dev_parms.req_cnt
+
+
+	lda #v1_dirent.sizeof
+	sta dirent_size
+
+	; / 2
+	lsr disk_inode.size+2
+	ror disk_inode.size
+
+	; / 4
+	lsr disk_inode.size+2
+	ror disk_inode.size
+
+	; / 8
+	lsr disk_inode.size+2
+	ror disk_inode.size
+
+	;  / 16
+	lsr disk_inode.size+2
+	ror disk_inode.size
+
+
+	lda super.magic
+	cmp #v1L.MAGIC
+	bne minix
+	; this is 
+linux
+	; linux dirents are twice as big.
+
+	asl dirent_size
+
+	;  / 32
+	lsr disk_inode.size+2
+	ror disk_inode.size
+
+
+minix
+	rts
+
+	endp
+
+
+
+get_base_displace	proc
+
+	; offset is $04 for class 0, $06 for class 1
+	with fst_parms, dp
+	with gde_dp
+
+	lda #$04
+	clc
+	adc <call_class
+	tay
+
+	lda [param_blk_ptr],y ; base
+	cmp #3
+	bcs perr
+
+	asl a
+	tax
+
+	iny
+	iny
+	lda [param_blk_ptr],y ; displacement
+	sta displacement
+
+	jmp (base_table,x)
+
+
+perr
+	lda #parm_range_err
+	sec
+	rts
+
+base_table
+	dc.w absolute, forward, backward
+
+absolute
+	; absolute with a displacement of 0 -> return total count.
+	;
+	cmp #0
+	beq @count
+	jmp get_indexed_entry
+@count
+	jmp count_entries
+
+forward
+	jmp get_next_entry
+	;
+backward
+	; backward 0 ? == forward 0
+	cmp #0
+	beq forward
+
+	eor #$ffff
+	sec ; inc / clc
+	ldy #fcr.dirent
+	adc [my_fcr],y
+	sta displacement
+
+	jmp get_indexed_entry
+
+	endp
+
+
+get_indexed_entry proc
+	; get the displacement entry.
+	lda displacement
+	beq eod
+	bmi eod
+	bra ok
+eod
+	lda #end_of_dir
+	sec
+	rts
+ok
+	
+	; if displacement is >= current dirent, use next dirent code.
+	ldy #fcr.dirent
+	cmp [my_fcr],y
+	bcc hard
+	sec
+	sbc [my_fcr],y
+	sta displacement
+	jmp get_next_entry
+hard
+	; go through all directory entries until we find the one we want.
+	ldx #0 ; zone.
+
+
+	clc
+	rts
+
+	endp
+
+count_entries proc
+	; count the number of entries.
+
+	with fst_parms
+	with dp, gde_dp
+
+	; read each block and count the entries.
+	; only handles direct blocks. so there.
+
+
+	; disk inode has been copied to the dp.
+	ldx #0
+zone_loop
+	lda disk_inode,x
+	beq done ; directory should not be sparse!
+
+	phx ; save
+	jsr read_data_block
+	plx ; and restore
+	bcs exit
+	jsr count_dirent_block
+	lda dirent_count
+	beq done
+	inx 
+	cpx #v1.NR_DZONES
+	bcs done
+	bra zone_loop
+	; 
+	; minix has 16-byte dirents.
+	; linux has 32-byte dirents.
+
+
+done
+
+	; also reset the displacement to 0.
+	lda #0
+	ldy #fcr.dirent
+	sta [my_fcr],y
+	ldy #fcr.dirent_zone
+	sta [my_fcr],y
+	ldy #fcr.dirent_offset
+	sta [my_fcr],y
+
+	clc
+exit
+	rts
+	endp
+
+count_dirent_block proc
+
+	; 16-byte dirent entries -- 64 per block.
+	with dp
+
+	ldy #0
+loop
+	lda [io_buffer],y
+	beq next
+	inc count
+next
+	; not 32-bit safe.
+	dec disk_inode.size
+	beq done
+
+	tya
+	clc
+	adc dirent_size
+	tay
+	cmp #1024
+	bcc loop
+
+done
+	rts
+
+	endp
+
+	end

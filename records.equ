@@ -1,8 +1,26 @@
 
+	;
+	; n.b. -- __sizeof only works for the record.  It does not
+	; work when actually instantiated.  MPW sucks for some reason.
+	; perhaps it blindly adds the current * to all relative equates....
+	;
+		macro
+&n		begin_struct
+&n		record 0
+__begin		equ *
+		mend
+
+		macro
+&n		end_struct
+&n		
+__end		equ *
+__sizeof	equ __end - __begin
+		endr
+		mend
 
 
 
-TimeRec		RECORD 0
+TimeRec		begin_struct
 second		DS.B 1
 minute		DS.B 1
 hour		DS.B 1
@@ -11,9 +29,49 @@ day		DS.B 1
 month		DS.B 1
 extra		DS.B 1
 weekDay		DS.B 1
-		ENDR
+		end_struct
 
-FileInfoRecGS	RECORD	0
+DirEntryRecGS	begin_struct
+pCount		DS.W	1
+refNum		DS.W	1
+flags		DS.W	1
+base		DS.W	1
+displacement	DS.W	1
+name		DS.L	1
+entryNum	DS.W	1
+fileType	DS.W	1
+eof		DS.L	1
+blockCount	DS.L	1
+createDateTime  DS	TimeRec
+modDateTime	DS	TimeRec
+access		DS.W	1
+auxType		DS.L	1
+fileSysID	DS.W	1
+optionList	DS.L	1
+resourceEOF	DS.L	1
+resourceBlocks	DS.L	1
+		end_struct
+
+DirEntryRec	begin_struct
+refNum		DS.B 2
+flags		DS.B 2
+base		DS.B 2
+displacement	DS.B 2
+nameBuffer	DS.B 4
+entryNum	DS.B 2
+fileType	DS.B 2
+endOfFile	DS.B 4
+blockCount	DS.B 4
+createTime	DS TimeRec
+modTime		DS TimeRec
+access		DS.B 2
+auxType		DS.B 4
+fileSysID	DS.B 2
+		end_struct
+
+
+
+FileInfoRecGS	begin_struct
 pCount		DS.W	1
 pathname	DS.L	1
 access		DS.W	1
@@ -27,10 +85,10 @@ eof		DS.L	1
 blocksUsed	DS.L	1
 resourceEOF	DS.L	1
 resourceBlocks	DS.L	1
-		ENDR
+		end_struct
 
 
-FileRec		RECORD 0
+FileRec		begin_struct
 pathname	DS.B 4
 fAccess		DS.B 2
 fileType	DS.B 2
@@ -41,9 +99,9 @@ createTime	DS.B 2
 modDate		DS.B 2
 modTime		DS.B 2
 blocksUsed	DS.B 4
-		ENDR
+		end_struct
 
-OpenRecGS	RECORD	0
+OpenRecGS	begin_struct
 pCount		DS.W	1
 refNum		DS.W	1
 pathname	DS.L	1
@@ -60,16 +118,16 @@ eof		DS.L	1
 blocksUsed	DS.L	1
 resourceEOF	DS.L	1
 resourceBlocks	DS.L	1
-		ENDR
+		end_struct
 
-OpenRec		RECORD 0
+OpenRec		begin_struct
 openRefNum	DS.B 2
 openPathname	DS.B 4
 ioBuffer	DS.B 4
-		ENDR
+		end_struct
 
 
-VolumeRecGS	RECORD	0
+VolumeRecGS	begin_struct
 pCount		DS.W	1
 devName		DS.L	1
 volName		DS.L	1
@@ -80,14 +138,14 @@ blockSize	DS.W	1
 characteristics	ds.w	1
 deviceID	ds.w	1
 sizeof		equ *
-		ENDR
+		end_struct
 
 
-VolumeRec	RECORD 0
+VolumeRec	begin_struct
 deviceName	DS.B 4
 volName		DS.B 4
 totalBlocks	DS.B 4
 freeBlocks	DS.B 4
 fileSysID	DS.B 2
 sizeof		equ *
-		ENDR
+		end_struct

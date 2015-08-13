@@ -165,7 +165,7 @@ dump_vcr
 	; drop through.
 
 create_vcr
-	lda #vcr.sizeof
+	lda #vcr.__sizeof
 	ldx #default_name
 	ldy #^default_name
 	jsl alloc_vcr
@@ -199,7 +199,7 @@ create_vcr
 	adc my_vcr+2
 	sta ptr+2
 
-	ldy #v1_super.sizeof-2
+	ldy #v1_super.__sizeof-2
 @loop
 	lda [dev_parms.dev_buff],y
 	sta [ptr],y
@@ -235,7 +235,7 @@ create_vcr
 	sta [my_vcr],y
 
 
-	~DebugHexDump <my_vcr,#vcr.sizeof 
+	~DebugHexDump <my_vcr,#vcr.__sizeof 
 
 	lda #0
 	clc

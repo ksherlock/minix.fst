@@ -198,6 +198,14 @@ app_entry	procname
 	sta io_buffer+2
 	sta dev_parms.dev_buff+2
 
+	stz dev_parms.dev_num
+	stz dev_parms.dev_callnum
+	stz dev_parms.dev_req_cnt
+	stz dev_parms.dev_req_cnt+2
+	stz dev_parms.dev_blk_num
+	stz dev_parms.dev_blk_num+2
+	stz dev_parms.dev_blk_size
+	stz dev_parms.dev_blk_size+2
 
 	stz <tool_error
 	stz <device
@@ -283,6 +291,55 @@ max_app_call	equ *-@app_table-2
 
 	endp
 
+init_fcr proc export
+	; deref the fcr and copy over inode, disk_inode
 
+	with fst_parms, dp
+
+	ldx fcr_ptr
+	ldy fcr_ptr+2
+	jsl deref
+	stx my_fcr
+	sty my_fcr+2
+
+	ldy #fcr.inode
+	lda [my_fcr],y
+	sta inode
+
+	;ldy #fcr.disk_inode + v1_inode.sizeof - 2
+	ldy #fcr.disk_inode.__end-2
+	ldx #v1_inode.__sizeof-2
+@loop
+	lda [my_fcr],y
+	sta disk_inode,x
+	dey
+	dey
+	dex
+	dex
+	bpl @loop
+
+	clc
+	rts
+	endp
+
+init_vcr proc export
+	; deref the vcr
+
+	with fst_parms, dp
+
+	ldx vcr_ptr
+	ldy vcr_ptr+2
+	jsl deref
+	stx my_vcr
+	sty my_vcr+2
+
+	ldy #vcr.device
+	lda [my_vcr]
+	sta device ; should probably just store in the dev_num.
+	sta dev_parms.dev_num
+
+	clc
+	rts
+	endp
 
 	end

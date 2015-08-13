@@ -10,7 +10,6 @@ my_fcr          	ds.l 1
 call_class      	ds.w 1
 
 
-
 device			ds.w 1 ; device for id_disk.
 tool_error		ds.w 1
 
@@ -19,12 +18,12 @@ inode			ds.w 1
 parent_inode		ds.w 1
 
 disk_inode		ds v1_inode
-
+;super			ds v1_super
 
 			IF *>=$d4 THEN
 			AERROR 'dp -- too large.'
 			ENDIF
-                	endr
+			endr
 
 
 fcr			record 0
@@ -40,15 +39,19 @@ access			ds.w 1
 
 			; fst-specific items
 
-ino			ds.w 1
+inode			ds.w 1
 disk_inode		ds v1_inode
 dirty			ds.w 1
 
 mark			ds.l 1 ; current position
 
+			; dirent stuff.
+dirent			ds.w 1 ; current directory entry.
+dirent_zone		ds.w 1 ; current directory zone [0-6]
+dirent_offset		ds.w 1 ; current directory offset
 
 
-sizeof			equ *
+__sizeof		equ *
 			endr
 
 vcr			record 0
@@ -70,7 +73,7 @@ first_inode_block	ds.w 1
 first_imap_block	ds.w 1
 first_zmap_block	ds.w 1
 
-sizeof			equ *
+__sizeof		equ *
 			endr
 
 

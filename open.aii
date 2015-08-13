@@ -29,6 +29,9 @@
 	entry check_access
 	entry build_fcr
 
+	import path_to_inode
+	import load_inode
+
 open	procname export
 
 	with fst_parms
@@ -36,6 +39,13 @@ open	procname export
 	with dp
 
 	; find the inode...
+
+	jsr path_to_inode
+	bcs exit
+
+	jsr load_inode
+	bcs exit
+
 
 	; sanity check the parameters.
 	jsr check_resource
@@ -106,9 +116,9 @@ build_fcr proc
 	with dp
 
 	; build filename string...
-	lda #fcr.sizeof
-	ldx #0
-	ldy #0
+	lda #fcr.__sizeof
+	ldx #minix_str
+	ldy #^minix_str
 	jsl alloc_fcr
 	bcc @ok
 	lda #out_of_mem
@@ -139,7 +149,7 @@ build_fcr proc
 	sta [my_fcr],y
 
 	lda inode
-	ldy #fcr.ino
+	ldy #fcr.inode
 	sta [my_fcr],y
 
 	lda #0
@@ -152,10 +162,12 @@ build_fcr proc
 	iny
 	sta [my_fcr],y
 	
+	; memory is 0-filled.
+
 	; copy the disk inode
 
-	ldx #disk_inode.sizeof-2
-	ldy #fcr.disk_inode + fcr.disk_inode.sizeof - 2 ; is sizeof updated?
+	ldx #v1_inode.__sizeof - 2
+	ldy #fcr.disk_inode.__end - 2
 
 @loop
 	lda disk_inode,x
@@ -168,6 +180,9 @@ build_fcr proc
 
 	clc
 	rts
+
+minix_str str.w ':minix'
+
 	endp
 
 

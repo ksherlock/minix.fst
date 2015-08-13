@@ -13,6 +13,8 @@
 
 
 	entry path_to_inode
+	entry load_inode
+
 	import id_disk
 	import device_read
 
@@ -25,79 +27,15 @@ get_file_info	procname export
 
 
 	jsr path_to_inode
-	bcc @inode
-	rtl
-@inode
-	; we have an inode.  and my_vcr is valid.
-	; we need to actually _load_ the inode.
+	bcs exit
 
-	; todo -- check if inode # is valid?
-	; todo -- check if bit set in imap?
+	jsr load_inode
+	bcs exit
+
 
 	;~DebugSetTrace #1
 	;pla ; prev value
 
-
-	ldy #vcr.first_inode_block
-	lda [my_vcr],y
-	asl a ; x 2
-	sta dev_blk_num
-
-	; 32 inodes per block.
-	; however, I'd rather read half-block chunks, with means
-	; 16 inodes per half-block.
-	lda inode
-	dec a ; inode 1 is offset 0.
-	lsr a ; / 2
-	lsr a ; / 4
-	lsr a ; / 8
-	lsr a ; / 16
-	;lsr a ; / 32
-
-	clc
-	adc dev_blk_num
-	sta dev_blk_num
-
-	lda #512
-	sta dev_req_cnt
-
-
-	lda device
-	sta dev_num
-
-	jsr device_read
-	bcc ok
-	rtl
-ok
-
-	; find the inode...
-	lda inode
-	dec a ; inode 1 is offset 0.
-	and #$0f
-	; multiply by 32
-	asl a ; x 2
-	asl a ; x 4
-	asl a ; x 8
-	asl a ; x 16
-	asl a ; x 32
-	clc
-	adc io_buffer
-	sta ptr
-	lda #0
-	adc io_buffer+2
-	sta ptr+2
-
-	; copy to dp
-	ldy #v1_inode.sizeof-2
-	ldx #v1_inode.sizeof-2
-@loop
-	lda [ptr],y
-	sta disk_inode,x
-	dey
-	dey
-	dex
-	dex
-	bpl @loop
 
 
 	;pha ; space
@@ -126,6 +64,8 @@ class0
 	cmp #0
 	rtl
 
+exit
+	rtl
 
 	import do_ignore
 	import do_access
@@ -173,8 +113,97 @@ do_access	proc
 
 
 
+load_inode	proc export
+	;
+	; loads inode into disk_inode.
+	;
+	; inputs : 
+	; my_vcr
+	; inode
+	; device
+	;
+	; outputs :
+	; disk_inode
+	; error in a/c
 
-path_to_inode	proc
+	; todo -- check if inode # is valid?
+	; todo -- check if bit set in imap?
+
+
+	with fst_parms
+	with dev_parms
+	with dp
+
+	ldy #vcr.first_inode_block
+	lda [my_vcr],y
+	asl a ; x 2
+	sta dev_blk_num
+
+	; 32 inodes per block.
+	; however, I'd rather read half-block chunks, with means
+	; 16 inodes per half-block.
+	lda inode
+	dec a ; inode 1 is offset 0.
+	lsr a ; / 2
+	lsr a ; / 4
+	lsr a ; / 8
+	lsr a ; / 16
+	;lsr a ; / 32
+
+	clc
+	adc dev_blk_num
+	sta dev_blk_num
+
+	lda #512
+	sta dev_req_cnt
+
+	lda device
+	sta dev_num
+
+	jsr device_read
+	bcc ok
+	rtl
+ok
+
+	; find the inode...
+	lda inode
+	dec a ; inode 1 is offset 0.
+	and #$0f
+	; multiply by 32
+	asl a ; x 2
+	asl a ; x 4
+	asl a ; x 8
+	asl a ; x 16
+	asl a ; x 32
+	clc
+	adc #v1_inode.__sizeof-2
+	tay
+
+	;adc io_buffer
+	;sta ptr
+	;lda #0
+	;adc io_buffer+2
+	;sta ptr+2
+
+	; copy to dp
+	ldx #v1_inode.__sizeof-2
+@loop
+	lda [io_buffer],y
+	sta disk_inode,x
+	dey
+	dey
+	dex
+	dex
+	bpl @loop
+
+	lda #0
+	clc
+	rts
+
+
+	endp
+
+path_to_inode	proc export
 	with dp,fst_parms
 
 
