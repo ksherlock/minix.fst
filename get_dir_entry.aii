@@ -8,6 +8,7 @@
 	include 'M16.Debug'
 
 	include 'records.equ'
+	include 'p.equ'
 
 	;
 	; dirent_entry 0 is a special case.

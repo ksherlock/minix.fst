@@ -1,0 +1,20 @@
+
+	; with p
+	; rep #(m|x|c)
+	; endwith
+
+p	record 0
+;nvmxdizc
+
+n	equ $80
+v	equ $40
+m	equ $20
+x	equ $10
+d	equ $08
+i	equ $04
+z	equ $02
+c	equ $01
+
+mx	equ $30
+
+	endr
