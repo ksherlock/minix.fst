@@ -28,6 +28,9 @@
 gde_dp	record	dp
 
 
+	; size of the directory, divided by dirent_size.
+size		ds.l 1
+
 displacement	ds.w 1
 
 dirent_size	ds.w 1
@@ -86,7 +89,7 @@ access_ok
 dir
 
 	jsr init
-	jst get_base_displace
+	jst base_displace
 	bcc @ok
 	rtl
 
@@ -99,6 +102,14 @@ dir
 
 	lda data.dirent.inode
 	beq dispatch
+
+	; if inode == the directory inode, no need to re-load it.
+	cmp inode
+	beq dispatch
+
+	sta inode
+	jsr load_inode
+	bcs exit
 
 dispatch
 
@@ -193,21 +204,27 @@ init	proc
 	lda #v1_dirent.sizeof
 	sta dirent_size
 
+
+	lda disk_inode.size
+	sta size
+	lda disk_inode.size+2
+	sta size+2
+
 	; / 2
-	lsr disk_inode.size+2
-	ror disk_inode.size
+	lsr size+2
+	ror size
 
 	; / 4
-	lsr disk_inode.size+2
-	ror disk_inode.size
+	lsr size+2
+	ror size
 
 	; / 8
-	lsr disk_inode.size+2
-	ror disk_inode.size
+	lsr size+2
+	ror size
 
 	;  / 16
-	lsr disk_inode.size+2
-	ror disk_inode.size
+	lsr size+2
+	ror size
 
 
 	lda super.magic
@@ -220,8 +237,8 @@ linux
 	asl dirent_size
 
 	;  / 32
-	lsr disk_inode.size+2
-	ror disk_inode.size
+	lsr size+2
+	ror size
 
 
 minix
@@ -230,8 +247,7 @@ minix
 	endp
 
 
-
-get_base_displace	proc
+base_displace	proc
 
 	; offset is $04 for class 0, $06 for class 1
 	with fst_parms, dp
@@ -373,7 +389,8 @@ zone_loop
 	jsr count_dirent_block
 	lda dirent_count
 	beq done
-	inx 
+	inx
+	inx
 	cpx #v1.NR_DZONES
 	bcs done
 	bra zone_loop
@@ -427,25 +444,24 @@ done
 
 	;
 	; returns:
-	; carry clear if not found
-	; carry set if end_of_dir or found (a = 0)
+	; carry set on error.
+	; overflow clear if found
 	;
+	; inputs y = dirent offset
 find_dirent_block	proc
-	with dp
+	with dp, gde_dp
 
-	ldy #0
-	entry find_partial_dirent_block
-find_partial_dirent_block
-
+	ldy dirent_offset
 loop
 	lda [io_buffer],y
 	beq next
-	;inc dirent_entry
+
+	inc dirent_entry
 	dec displacement
 	bmi found_it
 
 next
-	dec disk_inode.size
+	dec size
 	beq eod
 
 	tya
@@ -458,6 +474,7 @@ next
 
 	lda #0
 	clc
+	sep #p.v
 	rts
 
 eod
@@ -470,9 +487,9 @@ found_it
 	; we found our entry!!!
 	; copy it over.
 
-	stx gde_dp.dirent_zone
-	sty gde_dp.dirent_offset
-	; also need to store the dirent number...
+	stx dirent_zone
+	sty dirent_offset
+	; dirent_entry updated above.
 
 	lda [io_buffer],y
 	ldx #0
@@ -487,7 +504,8 @@ found_it
 	bcc @loop
 
 	lda #0
-	sec
+	clc
+	clv
 	rts
 
 	endp
@@ -683,5 +701,105 @@ ok
 exit
 	rts
 	endp
+
+
+;
+;
+; new code....
+; here's our big insight
+; 1. base 1, displacement xxx is equivalent to stepping forward xxx entries. 
+; 2. base 2, displacement xxx is equivalent to base 0, displacement fcr.dirent_entry - displacement
+; 2a. if displacement is 0, is equivalent to stepping forward 0 entries.
+; 3. base 0, displacement xxx is equivalent to base 1 displacement xxx when fcr.dirent_entry = 0
+;
+; therefore the only special case is dirent_entry == 0 (since displacement 1 -> read entry 0)
+;
+;
+find_absolute_dirent proc
+
+	; if displacement > dirent_entry, we can re-use that info.
+	lda displacement
+	cmp dirent_entry
+	bcc no
+
+	sec
+	sbc dirent_entry
+	sta displacement
+	bra find_next_dirent
+
+no
+	stz dirent_entry
+	stz dirent_zone
+	stz dirent_offset
+
+	bra find_next_dirent
+	endp
+
+find_next_dirent proc
+
+	lda dirent_entry
+	bne @ok
+	; if currently on dirent entry 0, displacement -= 1
+	inc dirent_entry
+	dec displacement
+	bmi eod
+@ok
+
+	ldx dirent_zone
+
+loop
+	lda disk_inode,x
+	beq sparse ; should never happen...
+	phx ; save
+	jsr read_data_block
+	plx
+	bcs exit
+
+	jsr find_dirent_block
+	bcs exit
+	bvc found_it
+
+next
+	inx
+	inx
+	stz dirent_offset
+
+	cpx #v1.NR_DZONES*2
+	bcs exit
+
+	; also check size
+	lda size
+	beq eod
+	bmi eod
+
+	bra loop
+
+sparse
+	; should never happen...
+	; skip over 1 block.
+	; size -= dirents per block -- 32 for linux, 64 for minix
+	lda dirent_size ; 16 or 32.  32 -> 32, 16 -> 64.
+	cmp #32
+	beq @ok
+	lda #64
+	eor #$ffff
+	sec ; + 1 
+	adc size
+	sta size
+	bra next
+
+
+found_it
+	stx dirent_zone
+	sty dirent_offset
+	clc
+exit
+	rts
+	endp
+
+eod
+	lda #end_of_dir
+	sec
+	rts
 
 	end
