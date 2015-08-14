@@ -9,19 +9,41 @@
 
 	include 'records.equ'
 
+	;
+	; dirent_entry 0 is a special case.
+	; (assuming base = 1, displacement = 1)
+	; first call:
+	; before
+	;   dirent_entry = 0, dirent_zone = 0, dirent_offset = 0
+	; after:
+	;   dirent_entry = 1, dirent_zone = 0, dirent_offset = 0
+	;
+	; subsequent calls:
+	; before
+	;   dirent_entry = 1, dirent_zone = ..., dirent_offset = ...
+	; after
+	;   dirent_entry = 2, dirent_zone = ..., dirent_offset = ...
+	;
 
 gde_dp	record	dp
 
 
 displacement	ds.w 1
-count		ds.w 1
+
 dirent_size	ds.w 1
+dirent_zone	ds.w 1
+dirent_offset	ds.w 1
+dirent_entry	ds.w 1
 
 	IF *>=$d4 THEN
 	AERROR 'dp -- too large.'
 	ENDIF
 	endr
 
+
+data	record	
+
+dirent	v1L_dirent
 	endr
 
 get_dir_entry	procname	export
@@ -70,16 +92,76 @@ dir
 
 @ok
 
+	; if data.dirent.inode is valid, load the inode
+	; (if not valid, this was a base/displace of 0 to return
+	; the dirent count.  field info will be returned from the 
+	; directory inode)
 
-	; hooray!  it's a directory.
-	; boo! we have to do all this work!
+	lda data.dirent.inode
+	beq dispatch
 
-	; now need to handle the base/displacement 
-	; base 0 - use displacement
-	; base 1 - use  current position + displacement
-	; base 2 - use current position - displacement
-	; 0/0 resets the current displacement to 0 and 
-	; returns the total number of entries in the entryNum
+dispatch
+
+	lda <call_class
+	beq class0
+
+class1
+	lda [param_blk_ptr] ; pcount
+	dec a
+	asl a ; x 2
+	asl a ; x 4
+	tax
+	dispatch get_dir_entry_dcb_1
+	lda tool_error
+	cmp #0
+	rtl
+
+class0
+	ldx #get_dir_entry_dcb_0_size-4
+	dispatch get_dir_entry_dcb_0
+	lda tool_error
+	cmp #0
+	rtl
+
+
+get_dir_entry_dcb_0
+	dc.w $00, do_ignore ; refnum
+	dc.w $02, do_flags
+	dc.w $04, do_ignore	; base
+	dc.w $06, do_ignore	; displacement
+	dc.w $08, do_name_buffer_0	;
+	dc.w $0c, do_entry_num
+	dc.w $0e, do_file_type
+	dc.w $10, do_eof
+	dc.w $14, do_blocks
+	dc.w $18, do_create_date_time_0
+	dc.w $20, do_mod_date_time_0
+	dc.w $28, do_access
+	dc.w $2a, do_aux_type
+	dc.w $2e, do_fst_id
+
+get_dir_entry_dcb_0_size equ *-get_dir_entry_dcb_0
+
+get_dir_entry_dcb_1
+	;dc.w $00, do_ignore	; pCount
+	dc.w $02, do_ignore ; refnum
+	dc.w $04, do_flags
+	dc.w $06, do_ignore	; base
+	dc.w $08, do_ignore	; displacement
+	dc.w $0a, do_name_buffer_1	;
+	dc.w $0e, do_entry_num
+	dc.w $10, do_file_type
+	dc.w $12, do_eof
+	dc.w $16, do_blocks
+	dc.w $1a, do_create_date_time
+	dc.w $22, do_mod_date_time
+	dc.w $2a, do_access
+	dc.w $2c, do_aux_type
+	dc.w $30, do_fst_id
+	dc.w $32, do_option_list
+	dc.w $36, do_r_eof
+	dc.w $3a, do_r_blocks
+
 
 
 	endp
@@ -92,10 +174,21 @@ init	proc
 	lda device
 	sta dev_parms.dev_num
 
+	; directory entry (and inode lookup) should be cached.
+	lda #in_cache
+	sta dev_parms.dev_cache_pr
+
 	lda #1024
 	sta dev_parms.dev_blk_size
 	sta dev_parms.req_cnt
 
+
+	stz dirent_offset
+	stz dirent_entry
+	stz dirent_zone
+
+	stz data.dirent.inode
+	stz data.dirent.name
 
 	lda #v1_dirent.sizeof
 	sta dirent_size
@@ -224,8 +317,34 @@ hard
 	; go through all directory entries until we find the one we want.
 	ldx #0 ; zone.
 
+zone_loop
+	lda disk_inode.zone,x
+	beq eod
 
+	phx ; save
+	jsr read_data_block
+	plx ; and restore
+	bcs exit
+
+	jsr dirent_find
+	; carry clear if found.
+	bcc done
+
+	lda dirent_count
+	beq eod
+	inx 
+	cpx #v1.NR_DZONES
+	bcs eod
+	bra zone_loop
+
+done
 	clc
+exit
+	rts
+
+eod
+	lda #end_of_dir
+	sec
 	rts
 
 	endp
@@ -247,6 +366,7 @@ zone_loop
 	beq done ; directory should not be sparse!
 
 	phx ; save
+	txa
 	jsr read_data_block
 	plx ; and restore
 	bcs exit
@@ -287,7 +407,7 @@ count_dirent_block proc
 loop
 	lda [io_buffer],y
 	beq next
-	inc count
+	inc dirent_entry
 next
 	; not 32-bit safe.
 	dec disk_inode.size
@@ -303,6 +423,265 @@ next
 done
 	rts
 
+	endp
+
+	;
+	; returns:
+	; carry clear if not found
+	; carry set if end_of_dir or found (a = 0)
+	;
+find_dirent_block	proc
+	with dp
+
+	ldy #0
+	entry find_partial_dirent_block
+find_partial_dirent_block
+
+loop
+	lda [io_buffer],y
+	beq next
+	;inc dirent_entry
+	dec displacement
+	bmi found_it
+
+next
+	dec disk_inode.size
+	beq eod
+
+	tya
+	clc
+	adc dirent_size
+	tay
+	cmp #1024
+	bcc loop
+	; not found ...
+
+	lda #0
+	clc
+	rts
+
+eod
+	lda #end_of_dir
+	sec
+	rts
+
+
+found_it
+	; we found our entry!!!
+	; copy it over.
+
+	stx gde_dp.dirent_zone
+	sty gde_dp.dirent_offset
+	; also need to store the dirent number...
+
+	lda [io_buffer],y
+	ldx #0
+@loop
+	lda [io_buffer],y
+	sta data.dirent,x
+	iny
+	iny
+	inx
+	inx
+	cpx #dirent_size
+	bcc @loop
+
+	lda #0
+	sec
+	rts
+
+	endp
+
+get_next_entry	proc
+
+	; displacement is the number of records *forward*
+	; if displacement is 0 and dirent is 0, eod.
+	; if dirent is 0, don't need to advance.
+
+	ldy #fcr.dirent
+	lda [my_fcr],y
+	bne @ok
+
+	dec displacement
+	bpl @ok
+
+	lda #end_of_dir
+	sec
+	rts
+
+@ok
+
+	; load the initial zone.
+
+	; current zone.
+	ldy #fcr.dirent_zone
+	lda [my_fcr],y
+	tax ; save
+	lda disk_inode.zone,x
+	phx
+	jsr read_data_block
+	plx
+	bcs exit
+
+
+	ldy #fcr.dirent_offset
+	lda [my_fcr],y
+	; current offset.
+
+	; while displacement, scan forward!
+	lda [io_buffer],y
+
+
+success
+	clc
+exit
+	rts
+	endp
+
+strlen	proc
+	; strlen the dirent.
+	; will be 0-terminated unless if < dirent size.
+	lda data.dirent.inode
+	beq exit
+
+	ldx #2
+	short m
+loop
+	lda data.dirent,x
+	beq zero
+	inx
+	cpx #dirent_size
+	bcc loop
+zero  
+	long m
+
+	txa
+	dec a ; -2 for dirent.inode
+	dec a
+
+exit
+	rts
+	endp
+do_flags	proc
+	; $8000 for extended file, 0 for everything else.
+	lda #0
+	sta [param_blk_ptr],y
+	rts
+	endp
+
+do_entry_num	proc
+	lda dirent_entry
+	sta [param_blk_ptr],y
+	rts
+	endp
+
+do_name_buffer_0 proc
+
+	lda [param_blk_ptr],y
+	sta ptr
+	iny
+	iny
+	lda [param_blk_ptr],y
+	sta ptr+2
+
+	ora ptr
+	beq exit
+
+
+copy_it
+
+	phx
+	jsr strlen
+	; strlen handles inode = 0
+
+	tax
+	tay 
+
+	short m
+
+	sta [ptr]
+
+	; no need to dey since there is a length byte.
+	dex
+	bmi @done
+
+@loop
+	lda data.dirent.name,x
+	sta [ptr],y
+	dey
+	dex
+	bpl @loop
+@done
+	long m
+	plx
+exit
+	rts
+	endp
+
+do_name_buffer_1 proc
+
+	lda [param_blk_ptr],y
+	sta ptr
+	iny
+	iny
+	lda [param_blk_ptr],y
+	sta ptr+2
+
+	ora ptr
+	beq exit
+
+	phx
+	jsr strlen
+
+	pha ; save
+	lda [ptr] ; total output buffer size
+	sec
+	sbc #4
+	bmi pre
+	cmp 1,s
+	bcs ok
+
+
+bts
+	pla
+	ldy #2
+	sta [ptr],y
+	lda #buff_too_small
+	sta tool_error
+	plx
+	rts
+
+pre
+	pla
+	lda #parm_range_err
+	sta tool_error
+	plx
+	rts
+ok
+	pla ; strlen
+	ldy #2
+	sta [ptr],y
+
+	tax
+	tay
+	iny ; skip gs/os string overhead
+	iny
+	iny
+	short m
+	dex
+	bmi @done
+@loop
+	lda data.dirent.name,x
+	sta [ptr],y
+	dey
+	dex
+	bpl @loop
+@done
+	long m
+	plx
+
+exit
+	rts
 	endp
 
 	end

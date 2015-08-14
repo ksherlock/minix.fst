@@ -46,9 +46,11 @@ dirty			ds.w 1
 mark			ds.l 1 ; current position
 
 			; dirent stuff.
-dirent			ds.w 1 ; current directory entry.
-dirent_zone		ds.w 1 ; current directory zone [0-6]
-dirent_offset		ds.w 1 ; current directory offset
+
+dirent_zone		equ mark ; current directory zone [0-6]
+dirent_offset		equ mark+2 ; current directory offset
+
+dirent_entry		ds.w 1 ; current directory entry.
 
 
 __sizeof		equ *

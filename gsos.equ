@@ -207,6 +207,9 @@ write_access	equ	$02
 invis_bit	equ	$04
 read_write_acc	equ	$03
 
+; used by ProDOS
+in_cache	equ	$8002
+
                 ; records
 
 
