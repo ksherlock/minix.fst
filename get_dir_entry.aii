@@ -56,12 +56,8 @@ get_dir_entry	procname	export
 	with gde_dp
 
 
-	ldx <fcr_ptr
-	ldy <fcr_ptr+2
-	jsl deref
-	stx <my_fcr
-	sty <my_fcr+2
-
+	jsr init_fcr
+	jsr init_vcr
 
 	; check for read-access
 	ldy #fcr.access
@@ -103,7 +99,7 @@ dir
 	lda data.dirent.inode
 	beq dispatch
 
-	; if inode == the directory inode, no need to re-load it.
+	; if inode == the directory inode (.) , no need to re-load it.
 	cmp inode
 	beq dispatch
 
@@ -194,9 +190,23 @@ init	proc
 	sta dev_parms.req_cnt
 
 
-	stz dirent_offset
-	stz dirent_entry
-	stz dirent_zone
+	;stz dirent_offset
+	;stz dirent_entry
+	;stz dirent_zone
+
+
+	ldy #fcr.dirent_zone
+	lda [my_fcr],y
+	sta dirent_zone
+
+	ldy #fcr.dirent_offset
+	lda [my_fcr],y
+	sta dirent_offset
+
+	ldy #fcr.dirent_entry
+	lda [my_fcr],y
+	sta dirent_entry
+
 
 	stz data.dirent.inode
 	stz data.dirent.name
@@ -227,7 +237,9 @@ init	proc
 	ror size
 
 
-	lda super.magic
+	ldy #v1_super.magic
+	lda [my_vcr],y
+
 	cmp #v1L.MAGIC
 	bne minix
 	; this is 
@@ -249,10 +261,10 @@ minix
 
 base_displace	proc
 
-	; offset is $04 for class 0, $06 for class 1
 	with fst_parms, dp
 	with gde_dp
 
+	; offset is $04 for class 0, $06 for class 1
 	lda #$04
 	clc
 	adc <call_class
@@ -286,12 +298,12 @@ absolute
 	;
 	cmp #0
 	beq @count
-	jmp get_indexed_entry
+	jmp find_absolute_dirent
 @count
 	jmp count_entries
 
 forward
-	jmp get_next_entry
+	jmp find_dirent
 	;
 backward
 	; backward 0 ? == forward 0
@@ -300,70 +312,14 @@ backward
 
 	eor #$ffff
 	sec ; inc / clc
-	ldy #fcr.dirent
-	adc [my_fcr],y
+	adc dirent_entry
 	sta displacement
 
-	jmp get_indexed_entry
+	jmp find_absolute_dirent
 
 	endp
 
 
-get_indexed_entry proc
-	; get the displacement entry.
-	lda displacement
-	beq eod
-	bmi eod
-	bra ok
-eod
-	lda #end_of_dir
-	sec
-	rts
-ok
-	
-	; if displacement is >= current dirent, use next dirent code.
-	ldy #fcr.dirent
-	cmp [my_fcr],y
-	bcc hard
-	sec
-	sbc [my_fcr],y
-	sta displacement
-	jmp get_next_entry
-hard
-	; go through all directory entries until we find the one we want.
-	ldx #0 ; zone.
-
-zone_loop
-	lda disk_inode.zone,x
-	beq eod
-
-	phx ; save
-	jsr read_data_block
-	plx ; and restore
-	bcs exit
-
-	jsr dirent_find
-	; carry clear if found.
-	bcc done
-
-	lda dirent_count
-	beq eod
-	inx 
-	cpx #v1.NR_DZONES
-	bcs eod
-	bra zone_loop
-
-done
-	clc
-exit
-	rts
-
-eod
-	lda #end_of_dir
-	sec
-	rts
-
-	endp
 
 count_entries proc
 	; count the number of entries.
@@ -376,22 +332,24 @@ count_entries proc
 
 
 	; disk inode has been copied to the dp.
+	stz dirent_entry
 	ldx #0
 zone_loop
 	lda disk_inode,x
-	beq done ; directory should not be sparse!
+	beq next ; directory should not be sparse!
 
 	phx ; save
-	txa
 	jsr read_data_block
 	plx ; and restore
 	bcs exit
 	jsr count_dirent_block
-	lda dirent_count
+	lda size
 	beq done
+
+next
 	inx
 	inx
-	cpx #v1.NR_DZONES
+	cpx #v1.NR_DZONES*2
 	bcs done
 	bra zone_loop
 	; 
@@ -427,7 +385,7 @@ loop
 	inc dirent_entry
 next
 	; not 32-bit safe.
-	dec disk_inode.size
+	dec size
 	beq done
 
 	tya
@@ -500,8 +458,23 @@ found_it
 	iny
 	inx
 	inx
-	cpx #dirent_size
+	cpx dirent_size
 	bcc @loop
+
+
+	; update the fcr.
+
+	lda dirent_entry
+	ldy #fcr.dirent_entry
+	sta [my_fcr],y
+
+	lda #dirent_offset
+	ldy #fcr.dirent_offset
+	sta [my_fcr],y
+
+	lda #dirent_zone
+	ldy #fcr.dirent_zone
+	sta [my_fcr],y
 
 	lda #0
 	clc
@@ -510,51 +483,6 @@ found_it
 
 	endp
 
-get_next_entry	proc
-
-	; displacement is the number of records *forward*
-	; if displacement is 0 and dirent is 0, eod.
-	; if dirent is 0, don't need to advance.
-
-	ldy #fcr.dirent
-	lda [my_fcr],y
-	bne @ok
-
-	dec displacement
-	bpl @ok
-
-	lda #end_of_dir
-	sec
-	rts
-
-@ok
-
-	; load the initial zone.
-
-	; current zone.
-	ldy #fcr.dirent_zone
-	lda [my_fcr],y
-	tax ; save
-	lda disk_inode.zone,x
-	phx
-	jsr read_data_block
-	plx
-	bcs exit
-
-
-	ldy #fcr.dirent_offset
-	lda [my_fcr],y
-	; current offset.
-
-	; while displacement, scan forward!
-	lda [io_buffer],y
-
-
-success
-	clc
-exit
-	rts
-	endp
 
 strlen	proc
 	; strlen the dirent.
