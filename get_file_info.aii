@@ -102,15 +102,6 @@ file_info_dcb_1
 	dc.w $30, do_r_blocks
 	endp
 
-do_access	proc
-	with dp,fst_parms
-
-	lda disk_inode.mode
-	lda #$c3 ; ehh
-	sta [param_blk_ptr],y
-	rts
-	endp
-
 
 
 load_inode	proc export

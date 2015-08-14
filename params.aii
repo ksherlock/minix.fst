@@ -337,5 +337,15 @@ do_refnum	proc	export
 	rts
 	endp
 
+do_access	proc	export
+	with dp,fst_parms
+
+	lda disk_inode.mode
+	lda #$c3 ; ehh
+	sta [param_blk_ptr],y
+	rts
+	endp
+
+
 
 	end

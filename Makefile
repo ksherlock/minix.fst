@@ -1,7 +1,7 @@
 
 
 SOURCES = main.aii volume.aii get_file_info.aii \
-	open.aii \
+	open.aii get_dir_entry.aii \
 	id_disk.aii stubs.aii tables.aii device.aii params.aii
 
 OBJECTS=$(SOURCES:.aii=.o)

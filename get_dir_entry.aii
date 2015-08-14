@@ -47,8 +47,40 @@ dirent_entry	ds.w 1
 
 data	record	
 
-dirent	v1L_dirent
+dirent	ds v1L_dirent
 	endr
+
+
+	import init_fcr
+	import init_vcr
+	import load_inode
+	import read_data_block
+
+	import do_ignore
+	import do_eof
+	import do_blocks
+	import do_r_eof
+	import do_r_blocks
+	import do_access
+	import do_file_sys_id
+	import do_option_list
+	import do_create_date_time
+	import do_mod_date_time
+	import do_file_type
+	import do_aux_type
+
+	entry init
+	entry base_displace
+	entry find_next_dirent
+	entry find_absolute_dirent
+	entry find_dirent_block
+	entry count_entries
+	entry count_dirent_block
+
+	entry do_flags
+	entry do_name_buffer_0
+	entry do_name_buffer_1
+	entry do_entry_num
 
 get_dir_entry	procname	export
 
@@ -86,7 +118,7 @@ access_ok
 dir
 
 	jsr init
-	jst base_displace
+	jsr base_displace
 	bcc @ok
 	rtl
 
@@ -97,6 +129,7 @@ dir
 	; the dirent count.  field info will be returned from the 
 	; directory inode)
 
+
 	lda data.dirent.inode
 	beq dispatch
 
@@ -106,7 +139,9 @@ dir
 
 	sta inode
 	jsr load_inode
-	bcs exit
+	bcc dispatch
+exit
+	rtl
 
 dispatch
 
@@ -142,11 +177,11 @@ get_dir_entry_dcb_0
 	dc.w $0e, do_file_type
 	dc.w $10, do_eof
 	dc.w $14, do_blocks
-	dc.w $18, do_create_date_time_0
-	dc.w $20, do_mod_date_time_0
+	dc.w $18, do_create_date_time
+	dc.w $20, do_mod_date_time
 	dc.w $28, do_access
 	dc.w $2a, do_aux_type
-	dc.w $2e, do_fst_id
+	dc.w $2e, do_file_sys_id
 
 get_dir_entry_dcb_0_size equ *-get_dir_entry_dcb_0
 
@@ -165,7 +200,7 @@ get_dir_entry_dcb_1
 	dc.w $22, do_mod_date_time
 	dc.w $2a, do_access
 	dc.w $2c, do_aux_type
-	dc.w $30, do_fst_id
+	dc.w $30, do_file_sys_id
 	dc.w $32, do_option_list
 	dc.w $36, do_r_eof
 	dc.w $3a, do_r_blocks
@@ -188,7 +223,7 @@ init	proc
 
 	lda #1024
 	sta dev_parms.dev_blk_size
-	sta dev_parms.req_cnt
+	sta dev_parms.dev_req_cnt
 
 
 	;stz dirent_offset
@@ -212,7 +247,7 @@ init	proc
 	stz data.dirent.inode
 	stz data.dirent.name
 
-	lda #v1_dirent.sizeof
+	lda #v1_dirent.__sizeof
 	sta dirent_size
 
 
@@ -304,7 +339,7 @@ absolute
 	jmp count_entries
 
 forward
-	jmp find_dirent
+	jmp find_next_dirent
 	;
 backward
 	; backward 0 ? == forward 0
@@ -336,7 +371,7 @@ count_entries proc
 	stz dirent_entry
 	ldx #0
 zone_loop
-	lda disk_inode,x
+	lda disk_inode.zone,x
 	beq next ; directory should not be sparse!
 
 	phx ; save
@@ -362,7 +397,7 @@ done
 
 	; also reset the displacement to 0.
 	lda #0
-	ldy #fcr.dirent
+	ldy #fcr.dirent_entry
 	sta [my_fcr],y
 	ldy #fcr.dirent_zone
 	sta [my_fcr],y
@@ -377,7 +412,7 @@ exit
 count_dirent_block proc
 
 	; 16-byte dirent entries -- 64 per block.
-	with dp
+	with dp, gde_dp
 
 	ldy #0
 loop
@@ -401,93 +436,13 @@ done
 
 	endp
 
-	;
-	; returns:
-	; carry set on error.
-	; overflow clear if found
-	;
-	; inputs y = dirent offset
-find_dirent_block	proc
-	with dp, gde_dp
-
-	ldy dirent_offset
-loop
-	lda [io_buffer],y
-	beq next
-
-	inc dirent_entry
-	dec displacement
-	bmi found_it
-
-next
-	dec size
-	beq eod
-
-	tya
-	clc
-	adc dirent_size
-	tay
-	cmp #1024
-	bcc loop
-	; not found ...
-
-	lda #0
-	clc
-	sep #p.v
-	rts
-
-eod
-	lda #end_of_dir
-	sec
-	rts
-
-
-found_it
-	; we found our entry!!!
-	; copy it over.
-
-	stx dirent_zone
-	sty dirent_offset
-	; dirent_entry updated above.
-
-	lda [io_buffer],y
-	ldx #0
-@loop
-	lda [io_buffer],y
-	sta data.dirent,x
-	iny
-	iny
-	inx
-	inx
-	cpx dirent_size
-	bcc @loop
-
-
-	; update the fcr.
-
-	lda dirent_entry
-	ldy #fcr.dirent_entry
-	sta [my_fcr],y
-
-	lda #dirent_offset
-	ldy #fcr.dirent_offset
-	sta [my_fcr],y
-
-	lda #dirent_zone
-	ldy #fcr.dirent_zone
-	sta [my_fcr],y
-
-	lda #0
-	clc
-	clv
-	rts
-
-	endp
 
 
 strlen	proc
 	; strlen the dirent.
 	; will be 0-terminated unless if < dirent size.
+	with gde_dp
+
 	lda data.dirent.inode
 	beq exit
 
@@ -497,7 +452,7 @@ loop
 	lda data.dirent,x
 	beq zero
 	inx
-	cpx #dirent_size
+	cpx dirent_size
 	bcc loop
 zero  
 	long m
@@ -510,6 +465,8 @@ exit
 	rts
 	endp
 do_flags	proc
+	with fst_parms
+
 	; $8000 for extended file, 0 for everything else.
 	lda #0
 	sta [param_blk_ptr],y
@@ -517,12 +474,17 @@ do_flags	proc
 	endp
 
 do_entry_num	proc
+	with fst_parms
+	with gde_dp
+
 	lda dirent_entry
 	sta [param_blk_ptr],y
 	rts
 	endp
 
 do_name_buffer_0 proc
+	with fst_parms
+	with dp
 
 	lda [param_blk_ptr],y
 	sta ptr
@@ -566,6 +528,8 @@ exit
 	endp
 
 do_name_buffer_1 proc
+	with fst_parms
+	with dp
 
 	lda [param_blk_ptr],y
 	sta ptr
@@ -645,6 +609,7 @@ exit
 ;
 ;
 find_absolute_dirent proc
+	with gde_dp
 
 	; if displacement > dirent_entry, we can re-use that info.
 	lda displacement
@@ -665,6 +630,7 @@ no
 	endp
 
 find_next_dirent proc
+	with gde_dp, dp
 
 	lda dirent_entry
 	bne @ok
@@ -677,7 +643,7 @@ find_next_dirent proc
 	ldx dirent_zone
 
 loop
-	lda disk_inode,x
+	lda disk_inode.zone,x
 	beq sparse ; should never happen...
 	phx ; save
 	jsr read_data_block
@@ -711,6 +677,7 @@ sparse
 	cmp #32
 	beq @ok
 	lda #64
+@ok
 	eor #$ffff
 	sec ; + 1 
 	adc size
@@ -724,11 +691,96 @@ found_it
 	clc
 exit
 	rts
-	endp
 
 eod
 	lda #end_of_dir
 	sec
 	rts
+	endp
+
+	;
+	; returns:
+	; carry set on error.
+	; overflow clear if found
+	;
+	; inputs y = dirent offset
+find_dirent_block	proc
+	with dp, gde_dp
+
+	ldy dirent_offset
+loop
+	lda [io_buffer],y
+	beq next
+
+	inc dirent_entry
+	dec displacement
+	bmi found_it
+
+next
+	dec size
+	beq eod
+
+	tya
+	clc
+	adc dirent_size
+	tay
+	cmp #1024
+	bcc loop
+	; not found ...
+
+	lda #0
+	clc
+	sep #p.v
+	rts
+
+eod
+	lda #end_of_dir
+	sec
+	rts
+
+
+found_it
+	; we found our entry!!!
+	; copy it over.
+
+	stx dirent_zone
+	sty dirent_offset
+	; dirent_entry updated above.
+
+	lda [io_buffer],y
+	ldx #0
+@loop
+	lda [io_buffer],y
+	sta data.dirent,x
+	iny
+	iny
+	inx
+	inx
+	cpx dirent_size
+	bcc @loop
+
+
+	; update the fcr.
+
+	lda dirent_entry
+	ldy #fcr.dirent_entry
+	sta [my_fcr],y
+
+	lda dirent_offset
+	ldy #fcr.dirent_offset
+	sta [my_fcr],y
+
+	lda dirent_zone
+	ldy #fcr.dirent_zone
+	sta [my_fcr],y
+
+	lda #0
+	clc
+	clv
+	rts
+
+	endp
+
+
 
 	end
