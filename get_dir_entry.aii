@@ -645,9 +645,10 @@ find_next_dirent proc
 	with gde_dp, dp
 
 	lda dirent_entry
-	bne @ok
-	; if currently on dirent entry 0, displacement -= 1
-	inc dirent_entry
+	beq @first
+	dec dirent_entry
+	bra @ok
+@first
 	dec displacement
 	bmi eod
 @ok
