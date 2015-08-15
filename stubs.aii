@@ -2,7 +2,6 @@
 stubs	proc
 
 	export change_path
-	export close
 	export create
 	export destroy
 	export erase_disk

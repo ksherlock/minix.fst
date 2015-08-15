@@ -1,0 +1,58 @@
+
+	include 'gsos.equ'
+	include 'minix.equ'
+	include 'fst.equ'
+
+	include 'fst.macros'
+
+	include 'M16.Debug'
+
+
+	import init_fcr
+	import init_vcr
+
+close	procname	export
+
+	with fst_parms, dp
+
+	; todo -- if dirty, update inode, etc?
+
+	;jsr init_fcr
+
+	ldx fcr_ptr
+	ldy fcr_ptr+2
+	jsl deref
+	stx my_fcr
+	sty my_fcr+2
+
+
+	lda [my_fcr]
+	jsl release_fcr
+
+
+	;jsr init_vcr
+
+	ldx vcr_ptr
+	ldy vcr_ptr+2
+	jsl deref
+	stx my_vcr
+	sty my_vcr+2
+
+
+	ldy #vcr.open_count
+	lda [my_vcr],y
+	beq fatal
+	dec a
+	sta [my_vcr],y
+
+	lda #0
+	clc
+	rtl
+
+fatal
+	lda #vcr_unusable
+	jml sys_death
+
+	endp
+
+	end
