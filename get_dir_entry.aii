@@ -548,26 +548,22 @@ do_name_buffer_1 proc
 	lda [ptr] ; total output buffer size
 	sec
 	sbc #4
-	bmi pre
+	bmi error
 	cmp 1,s
 	bcs ok
 
 
-bts
-	pla
+error_store_size
 	ldy #2
 	sta [ptr],y
+
+error
+	pla
 	lda #buff_too_small
 	sta tool_error
 	plx
 	rts
 
-pre
-	pla
-	lda #parm_range_err
-	sta tool_error
-	plx
-	rts
 ok
 	pla ; strlen
 	ldy #2
