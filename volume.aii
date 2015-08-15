@@ -35,7 +35,10 @@ volume	procname	export
 	
 	stz tool_error
 
-	lda dev_num
+	lda fst_parms.dev1_num
+	; if no device, find a volume by name...
+	beq by_name
+
 	jsr id_disk
 	bcc got_it
 	cmp #dup_volume
@@ -91,6 +94,11 @@ exit
 	cmp #1
 	rtl
 
+
+by_name
+	lda #unknown_vol
+	sec
+	rtl
 
 volume_dcb_0
 	dc.w VolumeRec.deviceName, do_ignore
