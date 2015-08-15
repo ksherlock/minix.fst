@@ -26,7 +26,7 @@
 	;   dirent_entry = 2, dirent_zone = ..., dirent_offset = ...
 	;
 
-gde_dp	record	dp
+gde_dp	record	dp.__end
 
 
 	; size of the directory, divided by dirent_size.
@@ -88,6 +88,7 @@ get_dir_entry	procname	export
 	with dp
 	with gde_dp
 
+	;~DebugSetTrace #1
 
 	jsr init_fcr
 	jsr init_vcr
@@ -155,6 +156,10 @@ class1
 	asl a ; x 4
 	tax
 	dispatch get_dir_entry_dcb_1
+
+
+	~DebugHexDump param_blk_ptr, #DirEntryRecGS.__sizeof
+
 	lda tool_error
 	cmp #0
 	rtl
@@ -273,7 +278,9 @@ init	proc
 	ror size
 
 
-	ldy #v1_super.magic
+	~DebugHexDump <my_vcr, #vcr.__sizeof
+
+	ldy #vcr.super.magic
 	lda [my_vcr],y
 
 	cmp #v1L.MAGIC
@@ -378,6 +385,15 @@ zone_loop
 	jsr read_data_block
 	plx ; and restore
 	bcs exit
+
+;	phx
+;	phy
+;	pha
+;	~DebugHexDump <io_buffer, #1024
+;	pla
+;	ply
+;	plx
+
 	jsr count_dirent_block
 	lda size
 	beq done
@@ -646,6 +662,16 @@ loop
 	plx
 	bcs exit
 
+;	phx
+;	phy
+;	pha
+;	~DebugHexDump <io_buffer, #1024
+;	pla
+;	ply
+;	plx
+
+
+
 	jsr find_dirent_block
 	bcs exit
 	bvc found_it
@@ -682,8 +708,8 @@ sparse
 
 
 found_it
-	stx dirent_zone
-	sty dirent_offset
+	;stx dirent_zone
+	;sty dirent_offset
 	clc
 exit
 	rts
@@ -743,7 +769,6 @@ found_it
 	sty dirent_offset
 	; dirent_entry updated above.
 
-	lda [io_buffer],y
 	ldx #0
 @loop
 	lda [io_buffer],y

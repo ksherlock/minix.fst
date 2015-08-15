@@ -20,6 +20,7 @@ parent_inode		ds.w 1
 disk_inode		ds v1_inode
 ;super			ds v1_super
 
+__end		equ *
 			IF *>=$d4 THEN
 			AERROR 'dp -- too large.'
 			ENDIF
