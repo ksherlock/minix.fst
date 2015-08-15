@@ -129,6 +129,10 @@ load_inode	proc export
 	lda [my_vcr],y
 	asl a ; x 2
 	sta dev_blk_num
+	;lda #0
+	;rol a
+	;sta dev_blk_num+2
+	stz dev_blk_num+2 ; should be less than 0xffff inode blocks!
 
 	; 32 inodes per block.
 	; however, I'd rather read half-block chunks, with means
@@ -147,6 +151,7 @@ load_inode	proc export
 
 	lda #512
 	sta dev_req_cnt
+	sta dev_blk_size
 
 	lda device
 	sta dev_num
