@@ -36,17 +36,17 @@ do_file_sys_id	proc export
 do_storage_type	proc export
 	with dp,fst_parms
 
+	phx ; save
 	lda disk_inode.mode
 	; check for directory.  GS/OS doesn't have concepts for other types (yet).
 
-	phx ; save
 	and #S_IFMT ; $f000
 	xba
 	lsr a
 	lsr a
 	lsr a
 	tax
-	jsr (table,x)
+	jmp (table,x)
 
 table
 	dc.w unknown
