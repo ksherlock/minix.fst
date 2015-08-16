@@ -1,3 +1,10 @@
+	;
+	; This file contains the implementation of get_dir_entry.
+	; It also contains other functions for finding an entry within 
+	; a directory.
+	;
+
+	case on
 
 	include 'gsos.equ'
 	include 'minix.equ'
@@ -9,6 +16,10 @@
 
 	include 'records.equ'
 	include 'p.equ'
+
+
+
+
 
 	;
 	; dirent_entry 0 is a special case.
@@ -26,7 +37,10 @@
 	;   dirent_entry = 2, dirent_zone = ..., dirent_offset = ...
 	;
 
-gde_dp	record	dp.__end
+	; don't think this needs to be dp... move to a normal record.
+
+
+data	record	
 
 
 	; size of the directory, divided by dirent_size.
@@ -39,15 +53,8 @@ dirent_zone	ds.w 1
 dirent_offset	ds.w 1
 dirent_entry	ds.w 1
 
-	IF *>=$d4 THEN
-	AERROR 'dp -- too large.'
-	ENDIF
-	endr
-
-
-data	record	
-
 dirent	ds v1L_dirent
+
 	endr
 
 
@@ -82,11 +89,13 @@ dirent	ds v1L_dirent
 	entry do_name_buffer_1
 	entry do_entry_num
 
+	entry sparse_dirent_block
+
 get_dir_entry	procname	export
 
 	with fst_parms
 	with dp
-	with gde_dp
+	with data
 
 	;~DebugSetTrace #1
 
@@ -217,7 +226,7 @@ get_dir_entry_dcb_1
 
 init	proc
 
-	with fst_parms,dp,gde_dp
+	with fst_parms,dp,data
 
 	lda device
 	sta dev_parms.dev_num
@@ -305,7 +314,7 @@ minix
 base_displace	proc
 
 	with fst_parms, dp
-	with gde_dp
+	with data
 
 	; offset is $04 for class 0, $06 for class 1
 	lda #$04
@@ -368,7 +377,7 @@ count_entries proc
 	; count the number of entries.
 
 	with fst_parms
-	with dp, gde_dp
+	with dp, data
 
 	; read each block and count the entries.
 	; only handles direct blocks. so there.
@@ -378,27 +387,26 @@ count_entries proc
 	stz dirent_entry
 	ldx #0
 zone_loop
+	stx dirent_zone
 	lda disk_inode.zone,x
-	beq next ; directory should not be sparse!
+	bne @ok ; directory should not be sparse!
+	; sparse!
+	jsr sparse_dirent_block
+	bcs done
+	bra next
 
-	phx ; save
+@ok
 	jsr read_data_block
-	plx ; and restore
 	bcs exit
 
-;	phx
-;	phy
-;	pha
 ;	~DebugHexDump <io_buffer, #1024
-;	pla
-;	ply
-;	plx
 
 	jsr count_dirent_block
 	lda size
 	beq done
 
 next
+	ldx dirent_zone
 	inx
 	inx
 	cpx #v1.NR_DZONES*2
@@ -428,7 +436,7 @@ exit
 count_dirent_block proc
 
 	; 16-byte dirent entries -- 64 per block.
-	with dp, gde_dp
+	with dp, data
 
 	ldy #0
 loop
@@ -457,7 +465,6 @@ done
 strlen	proc
 	; strlen the dirent.
 	; will be 0-terminated unless if < dirent size.
-	with gde_dp
 
 	lda data.dirent.inode
 	beq exit
@@ -468,7 +475,7 @@ loop
 	lda data.dirent,x
 	beq zero
 	inx
-	cpx dirent_size
+	cpx data.dirent_size
 	bcc loop
 zero  
 	long m
@@ -480,6 +487,7 @@ zero
 exit
 	rts
 	endp
+
 do_flags	proc
 	with fst_parms
 
@@ -491,7 +499,7 @@ do_flags	proc
 
 do_entry_num	proc
 	with fst_parms
-	with gde_dp
+	with data
 
 	lda dirent_entry
 	sta [param_blk_ptr],y
@@ -621,7 +629,7 @@ exit
 ;
 ;
 find_absolute_dirent proc
-	with gde_dp
+	with data
 
 	; if displacement > dirent_entry, we can re-use that info.
 	lda displacement
@@ -642,7 +650,7 @@ no
 	endp
 
 find_next_dirent proc
-	with gde_dp, dp
+	with data, dp
 
 	lda dirent_entry
 	beq @first
@@ -652,6 +660,10 @@ find_next_dirent proc
 	dec displacement
 	bmi eod
 @ok
+
+	; make sure dir not empty (should never happen...)
+	lda size
+	beq eod
 
 	ldx dirent_zone
 
@@ -674,8 +686,10 @@ loop
 
 
 	jsr find_dirent_block
-	bcs exit
-	bvc found_it
+	bcc next
+	; a = 0 if it was found!
+	cmp #1
+	rts
 
 next
 	inx
@@ -684,27 +698,11 @@ next
 
 	cpx #v1.NR_DZONES*2
 	bcs exit
-
-	; also check size
-	lda size
-	beq eod
-	bmi eod
-
 	bra loop
 
 sparse
-	; should never happen...
-	; skip over 1 block.
-	; size -= dirents per block -- 32 for linux, 64 for minix
-	lda dirent_size ; 16 or 32.  32 -> 32, 16 -> 64.
-	cmp #32
-	beq @ok
-	lda #64
-@ok
-	eor #$ffff
-	sec ; + 1 
-	adc size
-	sta size
+	jsr sparse_dirent_block
+	bcs eod
 	bra next
 
 
@@ -723,12 +721,12 @@ eod
 
 	;
 	; returns:
-	; carry set on error.
-	; overflow clear if found
+	; carry set on error or if found.
+	; a = 0 if found, or error.
 	;
 	; inputs y = dirent offset
 find_dirent_block	proc
-	with dp, gde_dp
+	with dp, data
 
 	ldy dirent_offset
 loop
@@ -753,7 +751,6 @@ next
 
 	lda #0
 	clc
-	sep #p.v
 	rts
 
 eod
@@ -797,12 +794,183 @@ found_it
 	sta [my_fcr],y
 
 	lda #0
-	clc
-	clv
+	sec ; found!
 	rts
 
 	endp
 
+
+strcmp	proc
+	; clobbers ptr
+
+	; check if the name is even possible...
+
+	with dp
+
+	import target:GSString32
+
+	ldx target.length
+	beq no
+
+	; dirent size is DIRSIZE + 2. -1 
+	; to compare >= DIRSIZE+1
+	lda data.dirent_size
+	dec a
+	cmp target.length
+	bcs no	
+
+	iny ; skip inode
+	iny 
+	tya
+	clc
+	adc io_buffer
+	sta ptr
+	adc io_buffer+2
+	sta ptr+2
+
+	ldx target.length
+	beq no
+	ldy #0
+	short m
+
+	; y = offset
+	; x = length of target string.
+loop
+	lda [ptr],y
+	beq eos
+	cmp target.text,y
+	bne no8
+	iny 
+	dex
+	bne loop
+	long m
+yes
+	clc
+	rts
+
+eos
+	long m
+	; end of string. if x = 1, it's a match!
+	dex
+	beq yes
+
+
+no8
+	long m
+no
+	sec
+	rts
+
+	endp
+
+sparse_dirent_block	proc
+	; (not 32-bit safe)
+
+	; decrease size by the appropriate amount
+	; for a sparse block.
+	; (should probably never happen!)
+
+	; sets c if size <= 0
+
+	with data
+
+	lda dirent_size
+	cmp #32 ; linux? 32 dirents per block
+	beq @ok
+	lda #64 ; minix? 64 dirents per block
+@ok
+	eor #$ffff
+	sec
+	adc size
+	sta size
+	bmi eod
+	beq eod
+	clc
+	rts
+eod
+	sec
+	rts
+
+	endp
+
+find_entry_by_name proc export
+
+	; scan the directory and search by name...
+
+	with dp
+	with data
+
+	jsr init
+	lda size
+	beq fnf
+	bmi fnf
+
+	ldx #0
+block_loop
+	; x = dirent_zone
+	stx dirent_zone
+	lda disk_inode,x
+	beq sparse
+
+	jsr read_data_block
+	bcc @ok
+	rts
+
+@ok
+	ldy #0
+
+dirent_loop
+	; y = dirent offset
+	sty dirent_offset
+
+	lda [io_buffer],y
+	beq next_dirent
+	sta inode ; optomistic...
+
+	jsr strcmp
+	bcs next_dirent
+
+	; found it!
+	lda #0
+	clc
+	rts
+
+next_dirent
+
+	dec size
+	beq fnf
+
+	lda dirent_offset
+	clc
+	adc dirent_size
+	tay 
+	cmp #1024
+	bcs next_zone
+	bra dirent_loop
+
+
+next_zone
+	ldx dirent_zone
+	inx
+	inx
+	cpx #v1.NR_DZONES*2
+	bcc block_loop
+	; all out of zones -> not found!
+
+
+fnf
+	stz inode
+	lda #file_not_found
+	sec
+	rts
+
+sparse
+	; sparse block. jump to the next zone, decrement size appropriately.
+	jsr sparse_dirent_block
+	bcs fnf
+	bra next_zone
+
+	endp
 
 
 	end

@@ -19,6 +19,25 @@ __sizeof	equ __end - __begin
 		mend
 
 
+GSString255	begin_struct
+length		DS.W	1		; Word - Number of Chars in text field 
+text		DS.B	255		; char[255] - 
+		end_struct
+
+GSString32	begin_struct
+length		DS.W	1		; Word - Number of characters in text field
+text		DS.B	32		; char[32] - 
+		end_struct
+
+ResultBuf255	begin_struct
+bufSize		DS.W	1
+bufString	DS	GSString255
+		end_struct
+
+ResultBuf32	begin_struct
+bufSize		DS.W	1
+bufString	DS	GSString32
+		end_struct
 
 TimeRec		begin_struct
 second		DS.B 1

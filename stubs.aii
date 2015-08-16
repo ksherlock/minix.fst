@@ -1,3 +1,6 @@
+
+	case on
+
 	include 'gsos.equ'
 stubs	proc
 

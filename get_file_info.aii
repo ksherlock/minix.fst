@@ -1,4 +1,5 @@
 
+	case on
 
 	include 'gsos.equ'
 	include 'minix.equ'
@@ -199,12 +200,21 @@ ok
 
 	endp
 
+	;
+	; sets inode, parent_inode, disk_inode, 
+	; if file not present but path is otherwise, ok (eg, create),
+	; parent inode and disk_inode will be valid for the parent directory.
+	;
+	; uses path1, dev1, span1.
+	;
+
 path_to_inode	proc export
 	with dp,fst_parms
 
 
 path	equ path1_ptr
 dev_num	equ dev1_num
+span	equ span1
 
 	stz inode
 	lda #1
@@ -232,6 +242,11 @@ bps
 	rts
 
 check_path
+
+	lda span
+	cmp #v1L.DIRSIZE+1
+	bcs bps
+
 	; but is it relative?
 
 	lda [path]
@@ -245,6 +260,10 @@ check_path
 	lda dev_num
 	bne bps
 	jsr id_disk
+	;
+	; now find the actual file...
+	;
+	;
 	rts
 
 absolute
@@ -259,6 +278,113 @@ absolute
 	clc
 	rts
 	
+	endp
+
+
+find_file	proc
+
+	with dp
+	import find_entry_by_name
+
+path	equ fst_parms.path1_ptr
+dev_num	equ fst_parms.dev1_num
+span	equ fst_parms.span1
+
+	import target:GSString32
+
+	stz more
+	stz path_offset
+
+	; we always need to load inode 1
+	lda #1
+	sta inode
+	jsr load_inode
+	_rts.cs
+
+
+dir_loop
+
+	lda inode
+	sta parent_inode
+
+	; get a path component.
+
+	ldx #0
+	ldy #path_offset
+
+path_loop
+	lda [path],y
+	beq eop
+	cmp #':'
+	beq eop
+	sta target.text,x
+	inx
+	bra path_loop
+eop
+	sta more
+	long m
+	stx target.length
+	sty path_offset
+	and #$00ff
+	; a = ':' or 0 ... worry about which later!
+
+	; target is valid, inode is valid, is target in inode?
+
+	jsr find_entry_by_name
+	bcc @ok
+	; may be file_not_found, may be path_not_found.
+	ldx more
+	beq @exit
+	lda #path_not_found
+@exit
+	sec
+	rts
+
+@ok
+	; inode,  has been updated.
+	jsr load_inode
+	_rts.cs
+
+	lda more 
+	beq done
+
+	; more to go...
+
+	; this is a directory, right?
+	lda disk_inode.mode
+	and #S_IFMT
+	cmp #S_IFDIR
+	beq dir
+	lda #path_not_found
+	sec
+	rts
+
+dir
+
+	; skip the ':'
+	short m
+	ldy path_offset
+loop
+	lda [path],y
+	beq @ok
+	cmp #':'
+	bne @ok
+	iny
+	bra loop
+@ok
+	long m
+	sty path_offset
+	bra dir_loop
+
+
+done
+	clc
+	rts
+
+
+path_offset	ds.w 1
+more		ds.w 1
+
 	endp
 
 	end
