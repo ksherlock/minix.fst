@@ -220,3 +220,44 @@
 	pha
 
 	MEND
+
+
+	; _rts.cc -> return iff carry clear
+	macro
+&l	_rts.&cond
+
+	if &cond='cc' THEN
+	bcs @ok
+	ENDIF
+
+	if &cond='cs' THEN
+	bcc @ok
+	ENDIF
+
+	if &cond='eq' THEN
+	bne @ok
+	ENDIF
+
+	if &cond='ne' THEN
+	beq @ok
+	ENDIF
+
+	if &cond='mi' THEN
+	bpl @ok
+	ENDIF
+
+	if &cond='pl' THEN
+	bmi @ok
+	ENDIF
+
+	if &cond='vs' THEN
+	bvc @ok
+	ENDIF
+
+	if &cond='vc' THEN
+	bvs @ok
+	ENDIF
+
+	rts
+@ok
+	mend
