@@ -1,3 +1,5 @@
+	case on
+
 	include 'gsos.equ'
 	include 'minix.equ'
 	include 'fst.equ'
@@ -101,10 +103,12 @@ do_file_type proc export
 
 	lda disk_inode.mode
 	and #S_IFMT
-	cmp #S_IFDIR
-	beq dir
 	cmp #S_IFREG
 	beq reg
+
+ 	cmp #S_IFDIR
+	beq dir
+
 
 unknown
 	lda #$00
@@ -129,6 +133,28 @@ store
 do_aux_type proc export
 	with dp,fst_parms
 
+	; chr and blk -- return the device type.
+
+	lda disk_inode.mode
+	and #S_IFMT
+	cmp #S_IFCHR
+	beq chr
+	cmp #S_IFBLK
+	beq blk
+
+	lda #0
+	sta [param_blk_ptr],y
+	iny
+	iny
+	sta [param_blk_ptr],y
+
+	rts
+chr
+blk
+	lda disk_inode.zone
+	sta [param_blk_ptr],y
+	iny
+	iny
 	lda #0
 	sta [param_blk_ptr],y
 	rts
