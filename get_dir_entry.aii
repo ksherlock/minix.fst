@@ -800,7 +800,7 @@ found_it
 	endp
 
 
-strcmp	proc
+strcmp	procname
 	; clobbers ptr
 
 	; check if the name is even possible...
@@ -809,15 +809,6 @@ strcmp	proc
 
 	import target:GSString32
 
-	ldx target.length
-	beq no
-
-	; dirent size is DIRSIZE + 2. -1 
-	; to compare >= DIRSIZE+1
-	lda data.dirent_size
-	dec a
-	cmp target.length
-	bcs no	
 
 	iny ; skip inode
 	iny 
@@ -825,11 +816,11 @@ strcmp	proc
 	clc
 	adc io_buffer
 	sta ptr
+	lda #0
 	adc io_buffer+2
 	sta ptr+2
 
 	ldx target.length
-	beq no
 	ldy #0
 	short m
 
@@ -900,10 +891,28 @@ find_entry_by_name procname export
 	with dp
 	with data
 
+	import target:GSString32
+
+
 	jsr init
 	lda size
 	beq fnf
 	bmi fnf
+
+
+	; make sure the name is valid.
+
+	ldx target.length
+	beq fnf
+
+	; if dirent_size < target.length, it can't be found.
+	; should do this sooner.
+	lda data.dirent_size
+	dec a
+	dec a 
+	cmp target.length
+	bcc fnf	
+
 
 	ldx #0
 zone_loop
