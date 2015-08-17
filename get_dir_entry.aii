@@ -893,7 +893,7 @@ eod
 
 	endp
 
-find_entry_by_name proc export
+find_entry_by_name procname export
 
 	; scan the directory and search by name...
 
@@ -906,10 +906,10 @@ find_entry_by_name proc export
 	bmi fnf
 
 	ldx #0
-block_loop
+zone_loop
 	; x = dirent_zone
 	stx dirent_zone
-	lda disk_inode,x
+	lda disk_inode.zone,x
 	beq sparse
 
 	jsr read_data_block
@@ -954,7 +954,7 @@ next_zone
 	inx
 	inx
 	cpx #v1.NR_DZONES*2
-	bcc block_loop
+	bcc zone_loop
 	; all out of zones -> not found!
 
 
