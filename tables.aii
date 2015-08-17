@@ -14,7 +14,7 @@ max_pcount
 		dc.w	4				; ($04) Change Path
 		dc.w	13				; ($05) Set File Info
 		dc.w	13				; ($06) Get File Info
-		dc.w	0				; ($07)
+		dc.w	6				; ($07) Judge Name
 		dc.w	7				; ($08) Volume
 		dc.w	0				; ($09) Set Prefix
 		dc.w	0				; ($0A) Get Prefix
@@ -68,7 +68,7 @@ min_pcount
 		dc.w	2				; ($04) Change Path
 		dc.w	2				; ($05) Set File Info
 		dc.w	2				; ($06) Get File Info
-		dc.w	0				; ($07)
+		dc.w	3				; ($07) Judge Name
 		dc.w	2				; ($08) Volume
 		dc.w	0				; ($09) Set Prefix
 		dc.w	0				; ($0A) Get Prefix

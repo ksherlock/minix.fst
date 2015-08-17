@@ -168,3 +168,37 @@ freeBlocks	DS.B 4
 fileSysID	DS.B 2
 sizeof		equ *
 		end_struct
+
+
+JudgeNameRecGS	begin_struct
+pCount		ds.w	1
+fileSysID	ds.w	1
+nameType	ds.w	1
+syntax		ds.l	1
+maxLen		ds.w	1
+name		ds.l	1
+nameFlags	ds.w	1
+		end_struct
+
+PositionRecGS	begin_struct
+pCount		DS.W	1
+refNum		DS.W	1
+position	DS.L	1
+		end_struct
+
+MarkRec		begin_struct
+markRefNum	DS.B 2
+position	DS.B 4
+		end_struct
+
+EOFRecGS	begin_struct
+pCount		DS.W	1
+refNum		DS.W	1
+eof		DS.L	1
+		end_struct
+
+
+EOFRec		begin_struct
+eofRefNum	DS.B 2
+eofPosition	DS.B 4
+		end_struct

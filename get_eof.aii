@@ -1,0 +1,75 @@
+
+	string asis
+
+	include 'gsos.equ'
+	include 'minix.equ'
+	include 'fst.equ'
+
+	include 'fst.macros'
+
+	include 'M16.Debug'
+
+	include 'records.equ'
+
+
+	import do_eof
+	import do_ignore
+	import init_fcr
+
+get_eof	procname	export
+
+	with dp, fst_parms
+
+	jsr init_fcr
+
+	lda disk_inode.mode
+	and #S_IFMT
+	cmp #S_IFREG
+	beq ok
+	cmp #S_IFLNK ; ehh
+	beq ok
+
+	lda #bad_store_type
+	sec
+	rtl
+ok
+
+
+	lda <call_class
+	beq class0
+
+class1
+	lda [param_blk_ptr] ; pcount
+	dec a
+	asl a ; x 2
+	asl a ; x 4
+	tax
+	dispatch get_eof_dcb_1
+	lda tool_error
+	cmp #0
+	rtl
+
+class0
+	ldx #get_eof_dcb_0_size-4
+	dispatch get_eof_dcb_0
+	lda tool_error
+	cmp #0
+	rtl
+
+get_eof_dcb_0
+	with EOFRec
+	dc.w eofRefNum, do_ignore
+	dc.w eofPosition, do_eof
+get_eof_dcb_0_size equ *-get_eof_dcb_0
+	endwith
+
+get_eof_dcb_1
+	with EOFRecGS
+	;dc.w pCount, do_ignore
+	dc.w refNum, do_ignore
+	dc.w eof, do_eof
+	endwith
+
+	endp
+
+	end

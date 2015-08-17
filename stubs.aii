@@ -11,8 +11,6 @@ stubs	proc
 	export flush
 	export format
 	export get_dev_num
-	export get_eof
-	export get_mark
 	export judge_name
 	export read
 	export set_eof
