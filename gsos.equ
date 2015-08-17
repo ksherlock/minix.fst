@@ -1,8 +1,5 @@
 
 
-	string asis
-	case on
-
 	MACRO
 	DEFAULT &var,&value
 	IF &FINDSYM(&SYSGLOBAL,&var)=0 THEN

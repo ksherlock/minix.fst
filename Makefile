@@ -9,7 +9,7 @@ OBJECTS=$(SOURCES:.aii=.o)
 LD=mpw linkIIgs
 ASM=mpw asmIIgs
 #ASMFLAGS=-d DEBUG_S16 -d DebugSymbols
-ASMFLAGS=-d DebugSymbols
+ASMFLAGS=-case on -d DebugSymbols
 LDFLAGS=
 
 minix.fst : Makefile $(OBJECTS)

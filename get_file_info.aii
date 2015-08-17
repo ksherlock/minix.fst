@@ -1,5 +1,5 @@
 
-	case on
+	string asis
 
 	include 'gsos.equ'
 	include 'minix.equ'
@@ -15,10 +15,18 @@
 
 	entry path_to_inode
 	entry load_inode
+	entry find_file
 
 	import id_disk
 	import device_read
 
+
+data	record
+
+path_offset	ds.w 1
+more		ds.w 1
+
+	endr
 
 get_file_info	procname export
 
@@ -239,6 +247,7 @@ no_path
 bps
 	lda #bad_path_syntax
 	sec
+exit
 	rts
 
 check_path
@@ -249,7 +258,8 @@ check_path
 
 	; but is it relative?
 
-	lda [path]
+	ldy #2
+	lda [path],y
 	and #$00ff
 	cmp #':'
 	beq absolute
@@ -258,13 +268,14 @@ check_path
 	sta inode
 
 	lda dev_num
-	bne bps
+	beq bps
+	sta device
 	jsr id_disk
+	bcs exit
+	lda #2
+	sta data.path_offset ; skip past gs-os length word
+	brl find_file ; will rts.
 	;
-	; now find the actual file...
-	;
-	;
-	rts
 
 absolute
 	;
@@ -284,6 +295,8 @@ absolute
 find_file	proc
 
 	with dp
+	with data
+
 	import find_entry_by_name
 
 path	equ fst_parms.path1_ptr
@@ -293,7 +306,6 @@ span	equ fst_parms.span1
 	import target:GSString32
 
 	stz more
-	stz path_offset
 
 	; we always need to load inode 1
 	lda #1
@@ -310,7 +322,7 @@ dir_loop
 	; get a path component.
 
 	ldx #0
-	ldy #path_offset
+	ldy path_offset
 
 path_loop
 	lda [path],y
@@ -382,8 +394,7 @@ done
 	rts
 
 
-path_offset	ds.w 1
-more		ds.w 1
+
 
 	endp
 
