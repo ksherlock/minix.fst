@@ -83,7 +83,15 @@ wht:
 	bra store
 
 dir
+	; todo -- $d is for subdirectories. $f is for the volume root (inode 1)
+	; (however, we could have hard link to inode 1 which is not the root!)
+	lda inode
+	cmp #1
+	beq @root_dir
 	lda #$0d
+	bra store
+@root_dir
+	lda #$0f
 	bra store
 
 reg
@@ -183,8 +191,7 @@ do_blocks proc export
 	with dp,fst_parms
 	with v1
 
-	; not sure if minix supports sparse blocks.  could just estimate
-	; based on file size.
+	; minix supports sparse blocks.  should just guess based on size...
 
 	phx ; save
 	phy ; save
