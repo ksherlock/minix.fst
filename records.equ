@@ -202,3 +202,29 @@ EOFRec		begin_struct
 eofRefNum	DS.B 2
 eofPosition	DS.B 4
 		end_struct
+
+IORecGS		begin_struct
+pCount		DS.W	1
+refNum		DS.W	1
+dataBuffer	DS.L	1			; Pointer
+requestCount	DS.L	1
+transferCount	DS.L	1
+cachePriority	DS.W	1
+		end_struct
+
+FileIORec	begin_struct
+fileRefNum	DS.B 2
+dataBuffer	DS.B 4
+requestCount	DS.B 4
+transferCount	DS.B 4
+		end_struct
+
+
+SetPositionRecGS begin_struct
+pCount		DS.W	1
+refNum		DS.W	1
+base		DS.W	1
+displacement	DS.L	1
+		end_struct
+
+

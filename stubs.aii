@@ -15,7 +15,6 @@ stubs	proc
 	export read
 	export set_eof
 	export set_file_info
-	export set_mark
 	export write
 
 

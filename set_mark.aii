@@ -1,0 +1,165 @@
+
+	string asis
+
+	include 'gsos.equ'
+	include 'minix.equ'
+	include 'fst.equ'
+
+	include 'fst.macros'
+
+	include 'M16.Debug'
+
+	include 'records.equ'
+
+my_dp	record dp.__end
+
+displacement 	ds.w 1
+omark		ds.l 1
+mark		ds.l 1
+
+		IF *>=$d4 THEN
+		AERROR 'dp -- too large.'
+		ENDIF
+		endr
+
+		import init_fcr
+
+set_mark	procname export
+
+	with dp, my_dp, fst_parms
+
+	jsr init_fcr
+
+
+	ldy #fcr.mark
+	lda [my_fcr],y
+	sta mark
+	sta omark
+
+	iny
+	iny
+	lda [my_fcr],y
+	sta mark+2
+	sta omark+2
+
+	lda call_class
+	bne class1
+
+	; class 0 - { uint16_t refNum;  uint32_t offset }
+class0
+	ldy #MarkRec.position
+	lda [param_blk_ptr],y
+	sta mark
+	iny
+	iny
+	lda [param_blk_ptr],y
+	sta mark+2
+	brl check
+
+class1
+
+	ldy #SetPositionRecGS.displacement
+	lda [param_blk_ptr],y
+	sta displacement
+	iny
+	iny
+	lda [param_blk_ptr],y
+	sta displacement+2
+
+	ldy #SetPositionRecGS.base
+	lda [param_blk_ptr],y
+	cmp #3+1
+	bcs pre
+	asl a ; x 2
+	jmp (table,x)
+	
+table
+	dc.w absolute,eof_minus,mark_plus,mark_minus
+
+pre
+	lda #parm_range_err
+	sec
+	rtl
+
+absolute
+	; mark = displacement
+	lda displacement
+	sta mark
+	lda displacement+2
+	sta mark
+	bra check
+eof_minus
+	; mark = eof - displacement
+	lda disk_inode.size
+	sec
+	sbc displacement
+	sta mark
+	lda disk_inode.size+2
+	sbc displacement+2
+	sta mark+2
+	bra check
+mark_plus
+	; mark = mark + displacement
+	lda mark
+	clc
+	adc displacement
+	sta mark
+	lda mark+2
+	adc displacement+2
+	sta mark+2
+	bra check
+mark_minus
+	; mark = mark - displacement
+
+	lda mark
+	sec
+	sbc displacement
+	sta mark
+	lda mark+2
+	sbc displacement+2
+	sta mark+2
+
+check
+	; negative mark?
+	lda mark+2
+	bmi oor
+
+	; mark > eof ?
+	;lda mark+2
+	cmp disk_inode.size+2
+	beq @lw
+	bcc update
+	bra oor
+
+@lw
+	; check the low-word
+	lda mark
+	cmp disk_inode.size
+	beq update
+	bcc update
+
+oor
+	lda #out_of_range
+	sec
+	rtl
+
+update
+
+	ldy #fcr.mark
+	lda mark
+	sta [my_fcr],y
+	iny
+	iny
+	lda mark+2
+	sta [my_fcr],y
+
+	; in the future...update data_zone, data_block
+	; if mark was moved to a different block.
+
+	lda #0
+	clc
+	rtl
+
+	endp
+
+	end
