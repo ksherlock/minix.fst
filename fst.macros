@@ -262,3 +262,13 @@
 @ok
 	mend
 
+	; reverse subtract.
+	macro
+&l	rsb &target
+	eor #$ffff
+	sec
+	adc &target
+	mend
+
+
+
