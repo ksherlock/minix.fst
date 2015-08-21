@@ -59,14 +59,14 @@ class1
 	tax
 	dispatch get_mark_dcb_1
 	lda tool_error
-	cmp #0
+	cmp #1
 	rtl
 
 class0
 	ldx #get_mark_dcb_0_size-4
 	dispatch get_mark_dcb_0
 	lda tool_error
-	cmp #0
+	cmp #1
 	rtl
 
 get_mark_dcb_0

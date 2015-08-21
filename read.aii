@@ -394,7 +394,7 @@ done
 	; eventually, data_zone, data_block.
 
 	ldx call_class
-	lda @table,x
+	lda tc_table,x
 	tay
 	lda transferCount
 	sta [param_blk_ptr],y
@@ -404,17 +404,15 @@ done
 	sta [param_blk_ptr],y
 
 	lda tool_error
-	cmp #0
+	cmp #1
 	rtl
 
-@table	dc.w FileIORec.transferCount, IORecGS.transferCount
-
-
-	lda tool_error
-	cmp #0
 
 exit
 	rtl
+
+
+tc_table	dc.w FileIORec.transferCount, IORecGS.transferCount
 
 
 	endp

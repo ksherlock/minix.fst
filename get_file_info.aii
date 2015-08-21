@@ -66,14 +66,14 @@ class1
 	tax
 	dispatch file_info_dcb_1
 	lda tool_error
-	cmp #0
+	cmp #1
 	rtl
 
 class0
 	ldx #file_info_dcb_0_size-4
 	dispatch file_info_dcb_0
 	lda tool_error
-	cmp #0
+	cmp #1
 	rtl
 
 exit
