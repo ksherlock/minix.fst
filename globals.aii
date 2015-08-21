@@ -1,0 +1,22 @@
+
+	string asis
+
+	include 'records.equ'
+	include 'minix.equ'
+
+globals	record
+
+	export disk_inode
+disk_inode	ds v1_inode
+
+
+	export disk_super
+disk_super	ds v1_super
+
+
+	export target
+target	ds GSString32
+
+	endr
+
+	end

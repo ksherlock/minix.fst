@@ -21,6 +21,9 @@
 	import device_read
 
 
+	import disk_inode:v1_inode
+	import disk_super:v1_super
+
 data	record
 
 path_offset	ds.w 1

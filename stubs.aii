@@ -12,7 +12,6 @@ stubs	proc
 	export format
 	export get_dev_num
 	export judge_name
-	export read
 	export set_eof
 	export set_file_info
 	export write

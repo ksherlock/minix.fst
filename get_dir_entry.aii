@@ -19,7 +19,8 @@
 
 
 
-
+	import disk_inode:v1_inode
+	import disk_super:v1_super
 
 	;
 	; dirent_entry 0 is a special case.

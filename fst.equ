@@ -17,7 +17,7 @@ tool_error		ds.w 1
 inode			ds.w 1
 parent_inode		ds.w 1
 
-disk_inode		ds v1_inode
+;disk_inode		ds v1_inode
 ;super			ds v1_super
 
 __end		equ *

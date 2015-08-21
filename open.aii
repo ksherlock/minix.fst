@@ -32,6 +32,9 @@
 	import path_to_inode
 	import load_inode
 
+	import disk_inode:v1_inode
+	import disk_super:v1_super
+
 open	procname export
 
 	with fst_parms

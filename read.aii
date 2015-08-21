@@ -1,0 +1,585 @@
+
+	string asis
+
+	include 'gsos.equ'
+	include 'minix.equ'
+	include 'fst.equ'
+
+	include 'fst.macros'
+
+	include 'M16.Debug'
+
+	include 'records.equ'
+
+
+	import do_ignore
+	import init_fcr
+	import init_vcr
+	import read_data_block
+
+	entry memcpy
+	entry do_transfer_count
+	entry do_data_buffer
+	entry do_request_count
+
+	entry init_block
+	entry next_block
+
+	entry slow_read
+	entry read_direct_block
+	entry read_partial_block
+
+	import disk_inode:v1_inode
+
+my_dp	record dp.__end
+
+dataBuffer	ds.l 1
+requestCount	ds.l 1
+transferCount	ds.l 1
+mark		ds.l 1
+
+mtc		ds.l 1
+
+count		ds.w 1 ; count from partial block read
+block		ds.w 1 ; current block for reading.
+
+zone		ds.l 1
+
+		IF *>=$d4 THEN
+		AERROR 'dp -- too large.'
+		ENDIF
+
+	endr
+
+
+
+	;
+	; read logic...
+	; if (mark & 1024-1) read partial block
+	; while (transferCount >= 1024) direct read into dataBudder
+	; if (transfterCount & 1024 - 1) read partial block
+
+
+
+do_transfer_count proc
+	with fst_parms, my_dp
+
+	lda transferCount
+	sta [param_blk_ptr],y
+	iny
+	iny
+	lda transferCount+2
+	sta [param_blk_ptr],y
+	rts
+	endp
+
+do_data_buffer proc
+	with fst_parms, my_dp
+
+	lda [param_blk_ptr],y
+	sta dataBuffer
+	iny
+	iny
+	lda [param_blk_ptr],y
+	sta dataBuffer+2
+	rts
+	endp
+
+do_request_count proc
+	with fst_parms, my_dp
+
+	lda [param_blk_ptr],y
+	sta requestCount
+	iny
+	iny
+	lda [param_blk_ptr],y
+	sta requestCount+2
+	rts
+	endp
+
+do_cache_priority proc
+	with fst_parms, my_dp, dp
+
+	lda [param_blk_ptr],y
+	; 0 or 1 only.
+	cmp #1
+	bcs pre
+	sta dev_parms.dev_cache_pr
+	rts
+pre
+	lda #parm_range_err
+	sta tool_error
+	rts
+	endp
+
+	entry set_zone
+
+init_block	proc
+
+	with my_dp
+
+	lda mark+1
+	sta zone
+	lda mark+3
+	and #$00ff
+	sta zone+2
+	lsr zone+2
+	ror zone
+	lsr zone+2
+	ror zone
+	ldx zone
+	bra set_zone
+	endp
+
+	; updates block, zone, etc.
+	; find the block to read.
+next_block	proc
+
+	with my_dp, dp, v1
+
+	ldx zone
+	inx
+	inx
+	stx zone
+	entry set_zone
+
+set_zone
+	cpx #NR_DZONES*2
+	bcc direct
+
+indirect
+double_indirect
+	; todo ...
+	lda #damaged_bitmap
+	sec
+	rts
+direct
+	lda disk_inode.zone,x
+	sta block
+	clc
+	rts
+
+	endp
+
+read	procname export
+
+	with dp, my_dp, fst_parms
+
+	;
+	jsr init_vcr
+	jsr init_fcr
+
+
+	; can only read from regular files or links.
+	lda disk_inode.mode
+	and #S_IFMT
+	cmp #S_IFREG
+	beq @ok
+	cmp #S_IFLNK
+	beq @ok
+
+	lda #bad_store_type
+	sec
+	rtl
+
+@ok
+	; offset is 2 for class 0, 4 for class 1!
+
+
+	; check for read-access
+	ldy #fcr.access
+	lda [<my_fcr],y
+
+	and #read_access
+	bne @access_ok
+
+	lda #invalid_access
+	sec
+	rtl
+
+
+@access_ok
+
+
+	stz transferCount
+	stz transferCount+2
+
+
+	ldy #fcr.mark+2
+	lda [my_fcr],y
+	sta mark
+	iny
+	iny
+	lda [my_fcr],y
+	sta mark+2
+
+	lda call_class
+	beq class0
+
+class1
+	lda [param_blk_ptr] ; pcount
+	dec a
+	asl a ; x 2
+	asl a ; x 4
+	tax
+	dispatch read_dcb_1
+
+	lda tool_error
+	beq class_over
+
+	sec
+	rtl
+
+class0
+	ldx #read_dcb_0_size-4
+	dispatch read_dcb_0
+	bra class_over
+
+
+read_dcb_1
+	with IORecGS
+	dc.w refNum, do_ignore
+	dc.w dataBuffer, do_data_buffer
+	dc.w requestCount, do_request_count
+	dc.w transferCount, do_ignore
+	dc.w cachePriority, do_cache_priority
+	endwith
+
+read_dcb_0
+	with FileIORec
+	dc.w fileRefNum, do_ignore
+	dc.w dataBuffer, do_data_buffer
+	dc.w requestCount, do_request_count
+	dc.w transferCount, do_ignore
+	endwith
+read_dcb_0_size equ *-read_dcb_0
+
+
+class_over
+
+
+	; end of file?
+	lda mark+2
+	cmp disk_inode.size+2
+	bcc noteof
+	lda mark
+	cmp disk_inode.size
+	bne noteof
+
+eof
+	lda #end_of_file
+	sec
+	rtl
+noteof
+
+	; if transferCount is 0, just quit now!
+	lda requestCount
+	ora requestCount+2
+	bne @rc
+
+	lda #0
+	clc
+	rtl
+@rc
+
+
+	; transferCount can't go past the eof mark...
+
+tc
+	; mtc -- max transferCount
+	sec
+	lda disk_inode.size
+	sbc mark
+	sta mtc
+
+	lda disk_inode.size+2
+	sbc mark+2
+	sta mtc+2
+
+	; if negative, we have a problem...
+	bmi eof
+	; if 0, end of file...
+	ora mtc
+	beq eof
+
+
+	lda transferCount+2
+	cmp mtc+2
+	bcc @ok
+	beq @lw
+	bra @toobig
+
+@lw	; low word
+	lda transferCount
+	cmp mtc
+	beq @ok
+	bcc @ok
+
+@toobig
+	lda mtc
+	sta transferCount
+	lda mtc+2
+	sta transferCount+2
+
+@ok
+
+	
+
+
+	; we are ok to read!
+	; check for new line mode...
+	ldy #fcr.newline_length
+	lda [my_fcr],y
+	beq normal_read
+
+	jsr slow_read
+
+normal_read
+
+
+	jsr init_block
+	_rts.cs
+
+	; currently limited to 7 zones, anyhow!
+
+	; first block may have extra work since it may be offset into a block.
+	; (should store block in the fcr)
+
+	lda mark
+	and #1024-1
+	beq aligned
+
+	jsr read_partial_block
+	bcs exit
+
+aligned
+	; while transferCount >= 1024 { read_direct_block }
+	lda transferCount+2
+	bne @read
+	lda transferCount
+	beq done
+	cmp #1024
+	bcc tail
+
+@read
+	jsr next_block
+	bcs exit
+	jsr read_direct_block
+	bcs exit
+
+	bra aligned
+
+tail
+	; read a partial tail block.
+	;  set up block...
+	jsr next_block
+	bcs exit
+	jsr read_direct_block
+	bcs exit
+
+
+done
+	; read complete!
+	; todo -- update fcr, transferCount
+
+
+	ldy #fcr.mark
+	lda mark
+	sta [my_fcr],y
+	iny
+	iny
+	lda mark+2
+	sta [my_fcr],y
+
+	; eventually, data_zone, data_block.
+
+	ldx call_class
+	lda @table,x
+	tay
+	lda transferCount
+	sta [param_blk_ptr],y
+	iny
+	iny
+	lda transferCount+2
+	sta [param_blk_ptr],y
+
+	lda tool_error
+	cmp #0
+	rtl
+
+@table	dc.w FileIORec.transferCount, IORecGS.transferCount
+
+
+	lda tool_error
+	cmp #0
+
+exit
+	rtl
+
+
+	endp
+
+update_counts proc
+
+	with my_dp
+
+	;dataBuffer += count
+
+	lda count
+	clc
+	adc dataBuffer
+	sta dataBuffer
+	lda #0
+	adc dataBuffer+2
+	sta dataBuffer+2
+
+	; transferCount += count
+
+	lda count
+	clc
+	adc transferCount
+	sta transferCount
+
+	lda #0
+	adc transferCount+2
+	sta transferCount+2
+	;
+
+	; requestCount -= count
+
+	lda requestCount
+	sec
+	sbc count
+	sta requestCount
+	lda requestCount+2
+	sbc #0
+	sta requestCount+2
+	rts
+
+	endp
+
+	; todo -- should read block into fcr, update fcr.
+read_partial_block proc
+	; read a block into io_buffer, then copy the parts we want into dataBuffer.
+	; a = block number.
+
+	with my_dp, dp
+
+	jsr read_data_block
+	_rts.cs
+
+
+	; count = 1024 - (mark & 0x1023)
+	lda mark
+	and #1024-1
+	rsb #1024
+
+
+	sta count
+	lda requestCount+2
+	bne @ok
+	lda requestCount
+	cmp count
+	bcs @ok
+	; requestCount is less than count...
+	sta count
+
+@ok
+
+	; assume block, etc are set up.
+	lda io_buffer
+	sta dev_parms.dev_buff
+	lda io_buffer+2
+	sta dev_parms.dev_buff+2
+
+	lda block
+	jsr read_data_block
+	bcs exit
+
+	; set ptr to the offset...
+	lda mark
+	and #1024-1
+	clc
+	adc io_buffer
+	sta ptr
+	lda #0
+	adc io_buffer+2
+	sta ptr+2
+
+	lda count
+	jsr memcpy
+
+
+	jsr update_counts
+	clc
+exit
+	rts
+
+	endp
+
+read_direct_block proc
+
+	with dp, my_dp
+
+	lda dataBuffer
+	sta dev_parms.dev_buff
+	lda dataBuffer+2
+	sta dev_parms.dev_buff+2
+
+	lda block
+	jsr read_data_block
+	bcs exit
+
+	lda #1024
+	sta count
+	jsr update_counts
+
+	clc
+exit
+	rts
+	endp
+
+memcpy	proc
+
+	; copy from ptr to dataBuffer
+	; a = count
+	;pha ; save
+	; all registers are clobbered.
+
+	with dp, my_dp
+
+	lsr a ; / 2
+	beq last_byte
+
+	tax
+	ldy #0
+loop
+	lda [ptr],y
+	sta [dataBuffer],y
+	iny
+	iny
+	dex
+	bne loop
+
+last_byte
+	;pla
+	; carry still set...
+	bcc done
+	short m
+	lda [ptr],y
+	sta [dataBuffer],y
+	long m
+done
+	rts
+	endp
+
+slow_read	procname
+
+	; todo ... 
+	lda #bad_store_type
+	sec
+
+	rts 
+	endp
+
+	end

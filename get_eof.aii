@@ -16,6 +16,10 @@
 	import do_ignore
 	import init_fcr
 
+
+	import disk_inode:v1_inode
+	import disk_super:v1_super
+
 get_eof	procname	export
 
 	with dp, fst_parms
