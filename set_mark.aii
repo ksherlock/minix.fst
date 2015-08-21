@@ -15,6 +15,10 @@
 	import disk_inode:v1_inode
 	import disk_super:v1_super
 
+	import init_vcr
+	import init_fcr
+
+
 my_dp	record dp.__end
 
 displacement 	ds.w 1
@@ -26,12 +30,12 @@ mark		ds.l 1
 		ENDIF
 		endr
 
-		import init_fcr
 
 set_mark	procname export
 
 	with dp, my_dp, fst_parms
 
+	jsr init_vcr
 	jsr init_fcr
 
 
@@ -75,6 +79,7 @@ class1
 	cmp #3+1
 	bcs pre
 	asl a ; x 2
+	tax
 	jmp (table,x)
 	
 table
