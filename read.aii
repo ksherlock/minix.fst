@@ -114,7 +114,7 @@ pre
 
 	entry set_zone
 
-init_block	proc
+init_block	procname
 
 	with my_dp
 
@@ -133,7 +133,7 @@ init_block	proc
 
 	; updates block, zone, etc.
 	; find the block to read.
-next_block	proc
+next_block	procname
 
 	with my_dp, dp, v1
 
@@ -169,6 +169,7 @@ read	procname export
 	jsr init_vcr
 	jsr init_fcr
 
+	~DebugSetTrace #1
 
 	; can only read from regular files or links.
 	lda disk_inode.mode
@@ -272,7 +273,7 @@ eof
 	rtl
 noteof
 
-	; if transferCount is 0, just quit now!
+	; if requestCount is 0, just quit now!
 	lda requestCount
 	ora requestCount+2
 	bne @rc
@@ -303,23 +304,23 @@ tc
 	beq eof
 
 
-	lda transferCount+2
+	lda requestCount+2
 	cmp mtc+2
 	bcc @ok
 	beq @lw
 	bra @toobig
 
 @lw	; low word
-	lda transferCount
+	lda requestCount
 	cmp mtc
 	beq @ok
 	bcc @ok
 
 @toobig
 	lda mtc
-	sta transferCount
+	sta requestCount
 	lda mtc+2
-	sta transferCount+2
+	sta requestCount+2
 
 @ok
 
@@ -353,17 +354,16 @@ normal_read
 	bcs exit
 
 aligned
+
 	; while transferCount >= 1024 { read_direct_block }
-	lda transferCount+2
+	lda requestCount+2
 	bne @read
-	lda transferCount
+	lda requestCount
 	beq done
 	cmp #1024
 	bcc tail
 
 @read
-	jsr next_block
-	bcs exit
 	jsr read_direct_block
 	bcs exit
 
@@ -372,11 +372,9 @@ aligned
 tail
 	; read a partial tail block.
 	;  set up block...
-	jsr next_block
-	bcs exit
-	jsr read_direct_block
-	bcs exit
 
+	jsr read_partial_block
+	bcs exit
 
 done
 	; read complete!
@@ -403,6 +401,8 @@ done
 	lda transferCount+2
 	sta [param_blk_ptr],y
 
+	~DebugSetTrace #0
+
 	lda tool_error
 	cmp #1
 	rtl
@@ -417,7 +417,7 @@ tc_table	dc.w FileIORec.transferCount, IORecGS.transferCount
 
 	endp
 
-update_counts proc
+update_counts procname
 
 	with my_dp
 
@@ -452,19 +452,24 @@ update_counts proc
 	lda requestCount+2
 	sbc #0
 	sta requestCount+2
+
+
+	ora requestCount
+	beq done
+	jmp next_block
+
+done
+	clc
 	rts
 
 	endp
 
 	; todo -- should read block into fcr, update fcr.
-read_partial_block proc
+read_partial_block procname
 	; read a block into io_buffer, then copy the parts we want into dataBuffer.
 	; a = block number.
 
 	with my_dp, dp
-
-	jsr read_data_block
-	_rts.cs
 
 
 	; count = 1024 - (mark & 0x1023)
@@ -485,6 +490,7 @@ read_partial_block proc
 @ok
 
 	; assume block, etc are set up.
+
 	lda io_buffer
 	sta dev_parms.dev_buff
 	lda io_buffer+2
@@ -508,17 +514,18 @@ read_partial_block proc
 	jsr memcpy
 
 
-	jsr update_counts
-	clc
+	jmp update_counts
 exit
 	rts
 
 	endp
 
-read_direct_block proc
+read_direct_block procname
 
 	with dp, my_dp
 
+
+	; set up for direct read!
 	lda dataBuffer
 	sta dev_parms.dev_buff
 	lda dataBuffer+2
@@ -530,14 +537,13 @@ read_direct_block proc
 
 	lda #1024
 	sta count
-	jsr update_counts
+	jmp update_counts
 
-	clc
 exit
 	rts
 	endp
 
-memcpy	proc
+memcpy	procname
 
 	; copy from ptr to dataBuffer
 	; a = count
