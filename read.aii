@@ -3,13 +3,13 @@
 
 	include 'gsos.equ'
 	include 'minix.equ'
+	include 'records.equ'
+
 	include 'fst.equ'
 
 	include 'fst.macros'
 
 	include 'M16.Debug'
-
-	include 'records.equ'
 
 
 	import do_ignore
@@ -169,7 +169,7 @@ read	procname export
 	jsr init_vcr
 	jsr init_fcr
 
-	~DebugSetTrace #1
+	;~DebugSetTrace #1
 
 	; can only read from regular files or links.
 	lda disk_inode.mode
@@ -401,7 +401,7 @@ done
 	lda transferCount+2
 	sta [param_blk_ptr],y
 
-	~DebugSetTrace #0
+	;~DebugSetTrace #0
 
 	lda tool_error
 	cmp #1

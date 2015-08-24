@@ -3,6 +3,8 @@
 
 	include 'gsos.equ'
 	include 'minix.equ'
+	include 'records.equ'
+
 	include 'fst.equ'
 
 	include 'fst.macros'
@@ -210,6 +212,11 @@ app_entry	procname
 	stz dev_parms.dev_blk_num+2
 	stz dev_parms.dev_blk_size
 	stz dev_parms.dev_blk_size+2
+
+	stz my_fcr
+	stz my_fcr+2
+	stz my_vcr
+	stz my_vcr+2
 
 	lda #fst_id
 	sta dev_parms.dev_fst_num

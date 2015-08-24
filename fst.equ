@@ -79,6 +79,9 @@ first_inode_block	ds.w 1
 first_imap_block	ds.w 1
 first_zmap_block	ds.w 1
 
+			; case-sensitive volume name.
+vname			ds GSString32
+
 __sizeof		equ *
 			endr
 

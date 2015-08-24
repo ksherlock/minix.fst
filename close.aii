@@ -1,6 +1,8 @@
 
 	include 'gsos.equ'
 	include 'minix.equ'
+	include 'records.equ'
+
 	include 'fst.equ'
 
 	include 'fst.macros'

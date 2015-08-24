@@ -18,7 +18,7 @@ minix.fst : Makefile $(OBJECTS)
 
 
 clean:
-	rm -f $(OBJECTS)
+	rm -f minix.fst $(OBJECTS)
 
 
 #.aii.o:
