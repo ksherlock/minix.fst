@@ -17,6 +17,8 @@
 	entry path_to_inode
 	entry load_inode
 	entry find_file
+	entry volume_by_name
+	entry vstrcmp
 
 	import id_disk
 	import device_read
@@ -220,6 +222,25 @@ ok
 	; uses path1, dev1, span1.
 	;
 
+
+	;
+	; After GS/OS expands prefixes, there are two path types
+	; 1. device root  (.dev:path)
+	; 2. path root (:volume:path)
+	;
+	; in the case of 1, verify the device is a minix volume, create 
+	; the vcr (if necessary) and proceed from there.
+	;
+	; in the case of 2, gs/os will check for a vcr with the volume
+	; name and, if found, give the FST a first shot at handling it. 
+	; if the FST doesn't claim it, or no vcr is found, all FSTs will 
+	; be called until it's claimed.
+	;
+	; fst_parms.vcr will not be populated even if GS/OS previously found 
+	; it. 
+	;
+
+
 path_to_inode	procname export
 	with dp,fst_parms
 
@@ -256,6 +277,8 @@ exit
 
 check_path
 
+	; linux allows a 30-char name. minix is 14 char
+	; will check for minix later.
 	lda span
 	cmp #v1L.DIRSIZE+1
 	bcs bps
@@ -288,10 +311,11 @@ absolute
 	; 2. call find_vcr to find it by name
 	; 3. if that fails, scan all devices.
 
-	lda #1
-	sta inode
-	clc
-	rts
+
+	jsr volume_by_name
+	_rts.cs
+
+	brl find_file
 	
 	endp
 
@@ -398,8 +422,173 @@ done
 	clc
 	rts
 
+	endp
+
+volume_by_name	procname
+	;
+	; extract the volume name from path1_ptr and find (or create) a vcr.
+	;
+	;
+
+	with dp
+	with data
+
+path	equ fst_parms.path1_ptr
+
+	import target:GSString32
+
+	; copy volume name to target.
+	; leading : is NOT included.
+
+	ldx #0
+	ldy #3
+	short m
+@loop
+	lda [path],y
+	beq done
+	cmp #':'
+	bne @next
+	iny
+	sty path_offset
+	bra done
+@next
+	sta target.text,x
+	inx
+	iny
+	bra @loop
+done
+
+	long m
+	stx target.length
+
+	ldx #target
+	ldy #^target
+	lda #0
+	jsl find_vcr
+	bcs no_vcr
+
+	; store it for later...
+	stx ptr
+	sty ptr+2
+
+	jsl deref
+	stx my_vcr
+	sty my_vcr+2
+
+	ldy #vcr.fst_id
+	lda [my_vcr],y
+	cmp #fst_id
+	bne no_vcr
+
+	; there is a vcr and it's a minix vcr.
+	; 1. should do a case-sensitive name check.
+	; 2. if the volume is marked as swapped, we need to
+	; re-scan devices.
+	; 3. if the volume is not swapped, we need to verify 
+	; the disk didn't switch on us.
+
+	ldy #vcr.status
+	lda [my_vcr],y
+	and #vcr_swapped
+	bne no_vcr
+
+	ldy #vcr.device
+	lda [my_vcr],y
+	jsr id_disk
+	bcs no_vcr
+
+	;
+	; I suppose reading a block could alloc memory and invalidate the vcr...
+	;
+
+	ldx ptr
+	ldy ptr+2
+
+	jsl deref
+	stx my_vcr
+	sty my_vcr+2
+
+	; check the volume name here...
+
+	jsr vstrcmp
+	bcs no_vcr
+	rts
 
 
+no_vcr
+	; no vcr on file... scan all devices to find the volume.
+	stz my_vcr
+	stz my_vcr+2
+
+	stz device
+
+@loop
+	lda device
+	inc a
+	sta device
+	jsr id_disk
+
+	bcs @error_check
+
+	; check if the volume name matches...
+	jsr vstrcmp
+	bcs @loop
+
+	; match!  hooray!
+	clc
+	rts
+
+@error_check
+	cmp #dup_volume
+	beq @error
+	cmp #invalid_dev_num
+	bne @loop
+	lda #vol_not_found
+@error
+	sec
+	rts
+	endp
+
+vstrcmp	procname
+
+	import target:GSString32
+
+	; case-sensitive strcmp for volume name
+	with dp
+
+	ldx #0
+	ldy #2
+
+	ldy #vcr.vname.length
+	lda [my_vcr],y
+	beq fail
+	cmp target.length
+	bne fail
+
+	tax
+	dex
+
+	clc
+	adc #vcr.vname.text-1
+	tya
+
+	short m
+@loop
+	lda [my_vcr],y
+	cmp target.text,x
+	bne fail8
+	dey
+	dex
+	bpl @loop
+	long m
+	clc
+	rts
+
+fail8
+	long m
+fail
+	sec
+	rts
 
 	endp
 

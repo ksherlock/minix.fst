@@ -103,7 +103,7 @@ by_name
 
 volume_dcb_0
 	dc.w VolumeRec.deviceName, do_ignore
-	dc.w VolumeRec.volName, do_vol_name_0
+	dc.w VolumeRec.volName, do_vol_name_1
 	dc.w VolumeRec.totalBlocks, do_total_blocks
 	dc.w VolumeRec.freeBlocks, do_free_blocks
 	dc.w VolumeRec.fileSysID, do_file_sys_id
@@ -202,12 +202,14 @@ done
 defaultName	str.b ':minix'
 	endp
 
-do_vol_name_1	proc
+do_vol_name_1	procname
 
 	with fst_parms
 	with dp
 
 	;ldy #VolumeRecGS.volName
+
+
 	lda [param_blk_ptr],y
 	sta ptr
 	iny
@@ -221,43 +223,66 @@ do_vol_name_1	proc
 	sbc #4
 	bmi error
 
-	cmp defaultName
-	bcc error_store_size
+	dec a ; - 1 for leading :
+	ldy #vcr.vname.length
+	cmp [my_vcr],y
+	;bcc error_store_size
 
-	;ldy #2
-	lda defaultName
-	;sta [ptr],y
+	ldy #vcr.vname.length
+	lda [my_vcr],y
+	inc a ; :
+	ldy #2
+	sta [ptr],y
 
-	inc a ; +1 for length word. 
+	bcc error ; still set from cmp.
+
+
+	phx ; save...
+
+	ldy #4
+	short m
+	lda #':'
+	sta [ptr],y
+	long m
+
+
+	; adjust pointer so y offset
+	; matches 
+	lda ptr
+	sec
+	sbc #vcr.vname-3 ; -5 for gs/os name overhead and :
+	sta ptr
+	lda ptr+2
+	sbc #0
+	sta ptr+2
+	
+	ldy #vcr.vname.length
+	lda [my_vcr],y ; length
+	iny
+	iny
 	tax
-
-	inc a ; skip buffer size.
-	inc a
-	tay
+	beq done
 	short m
 @loop
-	lda defaultName,x
+	lda [my_vcr],y
 	sta [ptr],y
-	dey
+	iny
 	dex
-	bpl @loop
+	bne @loop
+	long m
 
 done
-	long m
+	plx ; restore
 	clc
 	rts
 
-error_store_size
-	lda defaultName
-	ldy #2
-	sta [ptr],y
 error
 	lda #buff_too_small
 	sta tool_error
 	sec
 	rts
 
-defaultName	str.w ':minix'
+;defaultName	str.w ':minix'
 
 	endp
 

@@ -44,6 +44,8 @@ id_disk	procname	export
 	with dev_parms
 	with v1
 
+
+
 	sta dev_num
 
 	lda #512
@@ -60,9 +62,17 @@ id_disk	procname	export
 	jsr check_super
 	bcs exit
 
+	;
+	; if my_vcr is set, we only need to verify this is a minix disk,
+	; not building a new vcr.
+	lda dp.my_vcr
+	ora dp.my_vcr+2
+	bne done
+
 	jsr build_vcr
 	bcs exit
 
+done
 	; error priority $8000?
 	lda #0
 	clc
@@ -95,6 +105,13 @@ check_log_zone
 	ldy #log_zone_size
 	lda [dev_buff],y
 	bne no
+
+
+	; todo
+	; if my_vcr is valid, check the volume name...
+	;
+	;
+
 
 yes
 	clc
@@ -236,8 +253,29 @@ create_vcr
 	ldy #vcr.first_inode_block
 	sta [my_vcr],y
 
+vname
 
-	~DebugHexDump <my_vcr,#vcr.__sizeof 
+	; also need to copy over the volume name...
+	;ldy #vcr.vname
+	lda default_name
+	;sta [my_vcr],y
+
+	inc a
+	tax
+	clc
+	adc #vcr.vname
+	tay
+	short m
+@loop
+	lda default_name,x
+	sta [my_vcr],y
+	dey
+	dex
+	bpl @loop
+	long m
+
+
+	; ~DebugHexDump <my_vcr,#vcr.__sizeof 
 
 	lda #0
 	clc
