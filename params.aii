@@ -7,6 +7,7 @@
 
 	include 'fst.macros'
 
+	include 'M16.MiscTool'
 
 	;
 	; routines used to store data in parameter blocks
@@ -337,14 +338,14 @@ do_mod_date_time_0
 	rts
 	endp
 
+	entry do_mod_date_time
 
 do_create_date_time	proc export
 	with fst_parms
 
-	; todo ...
 
-	export do_mod_date_time
-do_mod_date_time
+	; minix has mod date but not create date.
+	bra do_mod_date_time
 
 	lda #0
 	sta [param_blk_ptr],y
@@ -360,6 +361,74 @@ do_mod_date_time
 
 	rts
 	endp
+
+do_mod_date_time	proc export
+	with fst_parms
+
+	; minix has mod date but not create date.
+
+	; check if valid
+	lda disk_inode.mtime
+	ora disk_inode.mtime+2
+	beq null
+
+	phx ; save
+
+	pha ; result space
+	pha 
+	pea 0 ; convert from seconds to read time hex.
+
+	; seconds + 0x7be5 1700 to convert from 1970 to 1904 ??? 
+	;
+	;
+	; 86400 * (365 * (1970 - 1904) + 17) [17 leap years]
+	; $7c25b080
+	;
+
+	lda disk_inode.mtime
+	clc
+	adc #$b080
+	tax
+	lda disk_inode.mtime+2
+	adc #$7c25
+	pha
+	phx
+
+	; date ptr
+	tya
+	clc
+	adc param_blk_ptr
+	tax
+	lda #0
+	adc param_blk_ptr+2
+	pha
+	phx
+
+	_ConvSeconds
+	pla
+	pla
+
+	plx
+	rts
+
+null
+	lda #0
+	sta [param_blk_ptr],y
+	iny
+	iny
+	sta [param_blk_ptr],y
+	iny
+	iny
+	sta [param_blk_ptr],y
+	iny
+	iny
+	sta [param_blk_ptr],y
+
+	rts
+
+	endp
+
+
 
 	;
 	; fcr-based items.
