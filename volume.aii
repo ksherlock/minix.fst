@@ -17,7 +17,17 @@
 
 	import id_disk
 
+my_dp	record dp.__end
 
+src	ds.l 1
+dest	ds.l 1
+length	ds.w 1
+
+	IF *>=$d4 THEN
+	AERROR 'dp -- too large.'
+	ENDIF
+
+	endr
 
 	import do_file_sys_id
 	import do_ignore
@@ -38,7 +48,7 @@ volume	procname	export
 
 	lda fst_parms.dev1_num
 	; if no device, find a volume by name...
-	beq by_name
+	beq no_dev
 
 	jsr id_disk
 	bcc got_it
@@ -71,6 +81,21 @@ dup_0
 
 got_it
 
+	; init common volume name parameters here...
+	with my_dp
+	ldy #vcr.vname.length
+	lda [my_vcr],y
+	sta length
+
+	lda #vcr.vname.text
+	clc
+	adc my_vcr
+	sta src
+	lda #0
+	adc my_vcr+2
+	sta src+2
+	endwith
+
 	lda <call_class
 	beq class0
 
@@ -96,28 +121,32 @@ exit
 	rtl
 
 
-by_name
+no_dev
 	lda #unknown_vol
 	sec
 	rtl
 
 volume_dcb_0
-	dc.w VolumeRec.deviceName, do_ignore
-	dc.w VolumeRec.volName, do_vol_name_1
-	dc.w VolumeRec.totalBlocks, do_total_blocks
-	dc.w VolumeRec.freeBlocks, do_free_blocks
-	dc.w VolumeRec.fileSysID, do_file_sys_id
+	with VolumeRec
+	dc.w deviceName, do_ignore
+	dc.w volName, do_vol_name_0
+	dc.w totalBlocks, do_total_blocks
+	dc.w freeBlocks, do_free_blocks
+	dc.w fileSysID, do_file_sys_id
+	endwith
 volume_dcb_0_size equ *-volume_dcb_0
 
 volume_dcb_1
-	dc.w VolumeRecGS.devName, do_ignore
-	dc.w VolumeRecGS.volName, do_vol_name_1
-	dc.w VolumeRecGS.totalBlocks, do_total_blocks
-	dc.w VolumeRecGS.freeBlocks, do_free_blocks
-	dc.w VolumeRecGS.fileSysID, do_file_sys_id
-	dc.w VolumeRecGS.blockSize, do_block_size
-	dc.w VolumeRecGS.characteristics, do_ignore
-	dc.w VolumeRecGS.deviceID, do_ignore
+	with VolumeRecGS
+	dc.w devName, do_ignore
+	dc.w volName, do_vol_name_1
+	dc.w totalBlocks, do_total_blocks
+	dc.w freeBlocks, do_free_blocks
+	dc.w fileSysID, do_file_sys_id
+	dc.w blockSize, do_block_size
+	dc.w characteristics, do_ignore
+	dc.w deviceID, do_ignore
+	endwith
 	endp
 
 
@@ -172,109 +201,108 @@ do_vol_name_0	proc
 	; store the volume name (class 0)
 
 	with fst_parms
-	with dp
+	with dp, my_dp
 
-	;ldy #VolumeRec.volName
+	; length and src are valid.
+
 	lda [param_blk_ptr],y
-	sta ptr
+	sta dest
 	iny
 	iny
 	lda [param_blk_ptr],y
-	sta ptr+2
+	sta dest+2
 
+
+	; length should be in the range of 1-30.
+	lda length
+	inc a
+	ora #'/'<<8 ; pstring
+	sta [dest]
+
+	lda #2
+	clc
+	adc dest
+	sta dest
 	lda #0
+	adc dest+2
+	sta dest+2
+
+	ldy length
+	beq done
+	dey
 	short m
-	lda defaultName ; count.
-	tax
-	tay
 @loop
-	lda defaultName,x
-	sta [ptr],y
-	dex
+	lda [src],y
+	sta [dest],y
 	dey
 	bpl @loop
-done
 	long m
+done
 	clc
 	rts
 
-
-defaultName	str.b ':minix'
 	endp
 
 do_vol_name_1	procname
 
 	with fst_parms
-	with dp
-
-	;ldy #VolumeRecGS.volName
+	with dp, my_dp
 
 
 	lda [param_blk_ptr],y
-	sta ptr
+	sta dest
 	iny
 	iny
 	lda [param_blk_ptr],y
-	sta ptr+2	
+	sta dest+2
+
 
 	; check the length.
-	lda [ptr]
+	lda [dest]
 	sec
 	sbc #4
 	bmi error
 
+
 	dec a ; - 1 for leading :
-	ldy #vcr.vname.length
-	cmp [my_vcr],y
-	;bcc error_store_size
+	cmp length
 
-	ldy #vcr.vname.length
-	lda [my_vcr],y
-	inc a ; :
+	lda length
+	inc a
 	ldy #2
-	sta [ptr],y
+	sta [dest],y
 
-	bcc error ; still set from cmp.
-
-
-	phx ; save...
+	; carry still set from cmp
+	bcc error
 
 	ldy #4
 	short m
 	lda #':'
-	sta [ptr],y
+	sta [dest],y
 	long m
 
+	lda #5
+	clc
+	adc dest
+	sta dest
+	lda #0
+	adc dest+2
+	sta dest+2
 
-	; adjust pointer so y offset
-	; matches 
-	lda ptr
-	sec
-	sbc #vcr.vname-3 ; -5 for gs/os name overhead and :
-	sta ptr
-	lda ptr+2
-	sbc #0
-	sta ptr+2
-	
-	ldy #vcr.vname.length
-	lda [my_vcr],y ; length
-	iny
-	iny
-	tax
+	ldy length
 	beq done
+	dey
 	short m
 @loop
-	lda [my_vcr],y
-	sta [ptr],y
-	iny
-	dex
-	bne @loop
+	lda [src],y
+	sta [dest],y
+	dey
+	bpl @loop
 	long m
-
 done
-	plx ; restore
 	clc
 	rts
+
 
 error
 	lda #buff_too_small
