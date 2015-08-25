@@ -118,11 +118,32 @@ open_dcb_1
 build_fcr proc
 
 	with dp
+	import target:GSString32
+
+	; use vcr.vname.  this is only needed for device-relative paths, anyhow.
+	; can vcr be invalidated?  copy vcr.vname to target, just in case.
+
+	ldy #vcr.vname.length
+	lda [my_vcr],y
+	sta target.length
+	ldx #0
+	ldy #vcr.vname.text
+vcr_vname
+@loop
+	lda [my_vcr],y
+	sta target.text,x
+	iny
+	iny
+	inx
+	inx
+	cpx target.length
+	bcc @loop
+
 
 	; build filename string...
 	lda #fcr.__sizeof
-	ldx #minix_str
-	ldy #^minix_str
+	ldx #target
+	ldy #^target
 	jsl alloc_fcr
 	bcc @ok
 	lda #out_of_mem
@@ -172,7 +193,7 @@ build_fcr proc
 
 	ldx #v1_inode.__sizeof - 2
 	ldy #fcr.disk_inode.__end - 2
-
+fcr_inode
 @loop
 	lda disk_inode,x
 	sta [my_fcr],y
@@ -184,8 +205,6 @@ build_fcr proc
 
 	clc
 	rts
-
-minix_str str.w ':minix'
 
 	endp
 

@@ -126,6 +126,13 @@ build_vcr	procname
 
 	; for now, volume hard coded as 'minix'.
 
+	;
+	; todo -- 
+	; offset 128 $6502 (magic word)
+	; 130 (minix) volume name, terminated w/ 0 
+	; 14 chars for minix, 30 chars for linux.
+	;
+
 	with v1
 	with dp
 
@@ -283,7 +290,7 @@ exit
 	rts
 
 default_name
-	str.w 'minix'
+	str.w ':minix'
 
 	endp
 

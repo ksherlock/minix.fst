@@ -213,31 +213,41 @@ do_vol_name_0	proc
 	sta dest+2
 
 
-	; length should be in the range of 1-30.
-	lda length
-	inc a
-	ora #'/'<<8 ; pstring
-	sta [dest]
 
-	lda #2
+
+	; length should be in the range of 1-30.
+	short m
+	lda length
+	sta [dest]
+	long m
+
+	lda dest
 	clc
-	adc dest
+	adc #1
 	sta dest
-	lda #0
-	adc dest+2
+	lda dest+2
+	adc #0
 	sta dest+2
 
-	ldy length
-	beq done
-	dey
+
 	short m
+	ldy length
+	dey
+	beq done
+	bmi exit8 ; should never happen.
 @loop
 	lda [src],y
 	sta [dest],y
 	dey
-	bpl @loop
-	long m
+	bne @loop
 done
+	; uses / as a separator
+	lda #'/'
+	sta [dest]
+
+exit8
+	long m
+
 	clc
 	rts
 
@@ -263,25 +273,17 @@ do_vol_name_1	procname
 	sbc #4
 	bmi error
 
-
-	dec a ; - 1 for leading :
 	cmp length
-
+	; branch after length stored...
+	
 	lda length
-	inc a
 	ldy #2
 	sta [dest],y
 
 	; carry still set from cmp
 	bcc error
 
-	ldy #4
-	short m
-	lda #':'
-	sta [dest],y
-	long m
-
-	lda #5
+	lda #4
 	clc
 	adc dest
 	sta dest
@@ -309,8 +311,6 @@ error
 	sta tool_error
 	sec
 	rts
-
-;defaultName	str.w ':minix'
 
 	endp
 

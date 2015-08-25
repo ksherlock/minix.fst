@@ -554,35 +554,43 @@ vstrcmp	procname
 	import target:GSString32
 
 	; case-sensitive strcmp for volume name
+	;
+	; target does not have a leading :
+	; vcr.vname has a leading : 
+	;
+
 	with dp
 
-	ldx #0
-	ldy #2
+
+	lda target.length
+	inc a ; + 1 for :
 
 	ldy #vcr.vname.length
-	lda [my_vcr],y
-	beq fail
-	cmp target.length
+	cmp [my_vcr],y
 	bne fail
 
-	tax
-	dex
-
+	lda #vcr.vname.text
 	clc
-	adc #vcr.vname.text-1
-	tya
+	adc target.length
+	tay
+
+	ldx target.length
+	dex
 
 	short m
 @loop
-	lda [my_vcr],y
-	cmp target.text,x
+	lda target.text,x
+	cmp [my_vcr],y
 	bne fail8
 	dey
 	dex
 	bpl @loop
+
+	;success
 	long m
 	clc
 	rts
+
 
 fail8
 	long m
