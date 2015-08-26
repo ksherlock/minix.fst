@@ -42,7 +42,7 @@ get_file_info	procname export
 
 	;~DebugSetTrace #1
 
-
+	brk $ea
 	jsr path_to_inode
 	bcs exit
 
@@ -320,6 +320,37 @@ absolute
 	
 	endp
 
+	entry skip_colon
+skip_colon	proc
+	;returns carry set if end of path.
+
+	with dp, data
+path	equ fst_parms.path1_ptr
+
+
+	ldy path_offset
+	short m
+@loop
+	lda [path],y
+	beq zero
+	cmp #':'
+	bne done
+	iny
+	bra @loop
+done
+	lda #':'
+	sta more
+	sty path_offset
+	long m
+	clc
+	rts
+zero
+	long m
+	stz more
+	sty data.path_offset
+	sec
+	rts
+	endp
 
 find_file	procname
 
@@ -345,14 +376,19 @@ span	equ fst_parms.span1
 
 dir_loop
 
-	lda inode
-	sta parent_inode
 
 	; get a path component.
 
+
+	; 1. check for a null path.
+	jsr skip_colon
+	bcs done
+
+	lda inode
+	sta parent_inode
+
 	ldx #0
 	ldy path_offset
-
 	short m
 path_loop
 	lda [path],y
@@ -399,28 +435,10 @@ eop
 	lda disk_inode.mode
 	and #S_IFMT
 	cmp #S_IFDIR
-	beq dir
+	beq dir_loop
 	lda #path_not_found
 	sec
 	rts
-
-dir
-
-	; skip the ':'
-	short m
-	ldy path_offset
-loop
-	lda [path],y
-	beq @ok
-	cmp #':'
-	bne @ok
-	iny
-	bra loop
-@ok
-	long m
-	sty path_offset
-	bra dir_loop
-
 
 done
 	clc
@@ -453,7 +471,6 @@ path	equ fst_parms.path1_ptr
 	cmp #':'
 	bne @next
 	iny
-	sty path_offset
 	bra done
 @next
 	sta target.text,x
@@ -463,6 +480,7 @@ path	equ fst_parms.path1_ptr
 done
 
 	long m
+	sty path_offset
 	stx target.length
 
 	ldx #target
