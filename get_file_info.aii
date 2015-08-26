@@ -174,7 +174,7 @@ load_inode	procname export
 
 	jsr device_read
 	bcc ok
-	rtl
+	rts
 ok
 
 	; find the inode...
