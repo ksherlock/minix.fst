@@ -222,7 +222,7 @@ app_entry	procname
 	sta dev_parms.dev_fst_num
 
 	stz <tool_error
-	stz <device
+	;stz <device
 
 	; fake an rtl address for sys_exit
 	; otherwise, would need to jml sys_exit from functions.
@@ -349,7 +349,7 @@ init_vcr proc export
 
 	ldy #vcr.device
 	lda [my_vcr]
-	sta device ; should probably just store in the dev_num.
+	;sta device ; should probably just store in the dev_num.
 	sta dev_parms.dev_num
 
 	clc

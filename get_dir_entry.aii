@@ -230,8 +230,9 @@ init	proc
 
 	with fst_parms,dp,data
 
-	lda device
-	sta dev_parms.dev_num
+	; must be set up before hand.
+	;lda device
+	;sta dev_parms.dev_num
 
 	; directory entry (and inode lookup) should be cached.
 	lda #in_cache

@@ -158,7 +158,8 @@ build_vcr	procname
 	and #vcr_swapped_in
 	sta [my_vcr],y
 
-	lda device
+	;lda device
+	lda dev_parms.dev_num
 	ldy #vcr.device
 	sta [my_vcr],y
 

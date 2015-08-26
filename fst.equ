@@ -10,7 +10,7 @@ my_fcr          	ds.l 1
 call_class      	ds.w 1
 
 
-device			ds.w 1 ; device for id_disk.
+;device			ds.w 1 ; device for id_disk.
 tool_error		ds.w 1
 
 

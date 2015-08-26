@@ -168,8 +168,9 @@ load_inode	procname export
 	sta dev_req_cnt
 	sta dev_blk_size
 
-	lda device
-	sta dev_num
+	; dev_num must already be set up.
+	;lda device ;;;;
+	;sta dev_num
 
 	jsr device_read
 	bcc ok
@@ -266,7 +267,7 @@ no_path
 
 	lda dev_num
 	beq bps
-	sta device
+	;sta device
 	jmp id_disk
 	; returns
 bps
@@ -296,7 +297,7 @@ check_path
 
 	lda dev_num
 	beq bps
-	sta device
+	;sta device
 	jsr id_disk
 	bcs exit
 	lda #2
@@ -547,6 +548,8 @@ no_vcr
 @error
 	sec
 	rts
+device
+	ds.w 1
 	endp
 
 vstrcmp	procname
