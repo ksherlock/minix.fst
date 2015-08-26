@@ -219,14 +219,19 @@ app_entry	procname
 	sta io_buffer+2
 	sta dev_parms.dev_buff+2
 
+	;
+	; minix uses 1024 byte blocks... however, appledisk3.5 can only read 256, 512, or 524 byte blocks.
+	;
+	lda #512
+	sta dev_parms.dev_blk_size
+	stz dev_parms.dev_blk_size+2
+
 	stz dev_parms.dev_num
 	stz dev_parms.dev_callnum
 	stz dev_parms.dev_req_cnt
 	stz dev_parms.dev_req_cnt+2
 	stz dev_parms.dev_blk_num
 	stz dev_parms.dev_blk_num+2
-	stz dev_parms.dev_blk_size
-	stz dev_parms.dev_blk_size+2
 
 	stz my_fcr
 	stz my_fcr+2
@@ -238,6 +243,7 @@ app_entry	procname
 
 	stz <tool_error
 	;stz <device
+
 
 	; fake an rtl address for sys_exit
 	; otherwise, would need to jml sys_exit from functions.

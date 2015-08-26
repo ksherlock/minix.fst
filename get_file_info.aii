@@ -42,7 +42,7 @@ get_file_info	procname export
 
 	;~DebugSetTrace #1
 
-	brk $ea
+	;brk $ea
 	jsr path_to_inode
 	bcs exit
 
@@ -165,8 +165,8 @@ load_inode	procname export
 	sta dev_blk_num
 
 	lda #512
+	;sta dev_blk_size
 	sta dev_req_cnt
-	sta dev_blk_size
 
 	; dev_num must already be set up.
 	;lda device ;;;;

@@ -238,8 +238,9 @@ init	proc
 	lda #in_cache
 	sta dev_parms.dev_cache_pr
 
+	; should probably read half-blocks...
 	lda #1024
-	sta dev_parms.dev_blk_size
+	;sta dev_parms.dev_blk_size
 	sta dev_parms.dev_req_cnt
 
 

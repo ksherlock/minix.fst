@@ -49,12 +49,13 @@ id_disk	procname	export
 	sta dev_num
 
 	lda #512
-	sta dev_blk_size
+	;sta dev_blk_size
+	sta dev_req_cnt
+
+
 	lda #SUPER_BLOCK*2
 	sta dev_blk_num
 
-	lda #512
-	sta dev_req_cnt
 
 	jsr device_read
 	bcs exit

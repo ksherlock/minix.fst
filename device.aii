@@ -36,7 +36,7 @@ device_write proc export
 
 
 	;
-	; inputs: a = block number. (1024 blocks)
+	; inputs: a = block number. (1024 byte block)
 	;
 	;
 read_data_block proc export
@@ -59,11 +59,16 @@ loop
 	rts
 
 read_it
+	; a = block num (1024-byte).
+	; multiply x 2 for 512-byte blocks.
+	asl a
 	sta dev_blk_num
-	stz dev_blk_num+2
+	lda #0
+	rol a
+	sta dev_blk_num+2
 
 	lda #1024
-	sta dev_blk_size
+	;sta dev_blk_size
 	sta dev_req_cnt
 	stz dev_req_cnt+2
 
