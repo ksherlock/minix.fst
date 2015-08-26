@@ -56,11 +56,26 @@ header	proc
 	; clear high bits = $1000
 	; read-only = $0800
 
+
+;			 Upper-case pathnames
+;			 |Character-based FST
+;			 ||Format capable
+;			 |||Strip high bits from pathname characters
+;			 ||||Read-Only FST
+;			 |||||Reserved
+;			 ||||||||||||||Format type
+;			 ||||||||||||||||  (00 = Universal)
+;			 ||||||||||||||||  (01 = Apple-generic)
+;			 ||||||||||||||||  (10 = Non-Apple)
+;			 ||||||||||||||||  (11 = Apple-][ specific)
+fst_attr	equ	%0010100000000010	;attributes
+						;(Format, ReadOnly, Non-Apple)
+
 	dc.b 'FST '
 	dc.l app_entry
 	dc.l sys_entry
 	dc.w fst_id
-	dc.w $2002		; flags -- format, block device, non-apple format
+	dc.w fst_attr		; $2002	; flags -- format, block device, non-apple format
 	dc.w $0100		; version 1.0
 	dc.w 1024		; block size
 	dc.l $ffffffff		; max blocks/volume
