@@ -183,13 +183,16 @@ app_entry	procname
 	rep #$30
 
 
-	IF DEBUG_S16 THEN
-	jsr debug
-	ENDIF
 
 	;brk $42
 
 	sty <call_class
+
+	; debug saves all registers.
+	IF DEBUG_S16 THEN
+	jsr debug
+	ENDIF
+
 
 	
 	; check the class 0 or 1 only.

@@ -101,8 +101,10 @@ get_dir_entry	procname	export
 
 	;~DebugSetTrace #1
 
-	jsr init_fcr
 	jsr init_vcr
+	jsr init_fcr
+
+	;brk $ea
 
 	; check for read-access
 	ldy #fcr.access
@@ -226,7 +228,7 @@ get_dir_entry_dcb_1
 	endp
 
 
-init	proc
+init	procname
 
 	with fst_parms,dp,data
 
@@ -315,7 +317,7 @@ minix
 	endp
 
 
-base_displace	proc
+base_displace	procname
 
 	with fst_parms, dp
 	with data
@@ -377,7 +379,7 @@ backward
 
 
 
-count_entries proc
+count_entries procname
 	; count the number of entries.
 
 	with fst_parms
@@ -437,7 +439,7 @@ exit
 	rts
 	endp
 
-count_dirent_block proc
+count_dirent_block procname
 
 	; 16-byte dirent entries -- 64 per block.
 	with dp, data
@@ -466,7 +468,7 @@ done
 
 
 
-strlen	proc
+strlen	procname
 	; strlen the dirent.
 	; will be 0-terminated unless if < dirent size.
 
@@ -492,7 +494,7 @@ exit
 	rts
 	endp
 
-do_flags	proc
+do_flags	procname
 	with fst_parms
 
 	; $8000 for extended file, 0 for everything else.
@@ -501,7 +503,7 @@ do_flags	proc
 	rts
 	endp
 
-do_entry_num	proc
+do_entry_num	procname
 	with fst_parms
 	with data
 
@@ -510,7 +512,7 @@ do_entry_num	proc
 	rts
 	endp
 
-do_name_buffer_0 proc
+do_name_buffer_0 procname
 	with fst_parms
 	with dp
 
@@ -555,7 +557,7 @@ exit
 	rts
 	endp
 
-do_name_buffer_1 proc
+do_name_buffer_1 procname
 	with fst_parms
 	with dp
 
@@ -632,7 +634,7 @@ exit
 ; therefore the only special case is dirent_entry == 0 (since displacement 1 -> read entry 0)
 ;
 ;
-find_absolute_dirent proc
+find_absolute_dirent procname
 	with data
 
 	; if displacement > dirent_entry, we can re-use that info.
@@ -729,7 +731,7 @@ eod
 	; a = 0 if found, or error.
 	;
 	; inputs y = dirent offset
-find_dirent_block	proc
+find_dirent_block	procname
 	with dp, data
 
 	ldy dirent_offset
@@ -863,7 +865,7 @@ no
 
 	endp
 
-sparse_dirent_block	proc
+sparse_dirent_block	procname
 	; (not 32-bit safe)
 
 	; decrease size by the appropriate amount
