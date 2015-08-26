@@ -162,23 +162,17 @@ do_block_size	proc
 	endp
 
 do_total_blocks	proc
-	; total blocks = 2 + imap_blocks + zmap_blocks + nzones. I think.
+	; total blocks = nzones.
+
+	; should this ask the driver?
 
 	with dp
 	with fst_parms
 
 	phy ; save
 
-	lda #2 ; boot block, super block.
-	clc
-
-	; pull from vcr?
 	ldy #vcr.super.nzones
-	adc [my_vcr],y
-	ldy #vcr.super.imap_blocks
-	adc [my_vcr],y
-	ldy #vcr.super.zmap_blocks
-	adc [my_vcr],y
+	lda [my_vcr],y
 
 	ply
 	sta [param_blk_ptr],y
@@ -275,7 +269,7 @@ do_vol_name_1	procname
 
 	cmp length
 	; branch after length stored...
-	
+
 	lda length
 	ldy #2
 	sta [dest],y
