@@ -265,7 +265,7 @@ vname
 
 	; also need to copy over the volume name...
 	;ldy #vcr.vname
-	lda default_name
+	lda default_name_colon
 	;sta [my_vcr],y
 
 	inc a
@@ -275,7 +275,7 @@ vname
 	tay
 	short m
 @loop
-	lda default_name,x
+	lda default_name_colon,x
 	sta [my_vcr],y
 	dey
 	dex
@@ -290,8 +290,11 @@ vname
 exit
 	rts
 
-default_name
+default_name_colon
 	str.w ':minix'
+
+default_name
+	str.w 'minix'
 
 	endp
 
