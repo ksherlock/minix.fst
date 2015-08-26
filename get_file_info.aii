@@ -372,6 +372,9 @@ eop
 
 	; target is valid, inode is valid, is target in inode?
 
+	;~DebugHexDump #target, #34
+
+
 	jsr find_entry_by_name
 	bcc @ok
 	; may be file_not_found, may be path_not_found.

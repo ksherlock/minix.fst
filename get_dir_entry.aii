@@ -169,7 +169,7 @@ class1
 	dispatch get_dir_entry_dcb_1
 
 
-	~DebugHexDump param_blk_ptr, #DirEntryRecGS.__sizeof
+	;~DebugHexDump param_blk_ptr, #DirEntryRecGS.__sizeof
 
 	lda tool_error
 	cmp #1
@@ -290,7 +290,7 @@ init	proc
 	ror size
 
 
-	~DebugHexDump <my_vcr, #vcr.__sizeof
+	;~DebugHexDump <my_vcr, #vcr.__sizeof
 
 	ldy #vcr.super.magic
 	lda [my_vcr],y
@@ -812,6 +812,7 @@ strcmp	procname
 
 	import target:GSString32
 
+	;~DebugSetTrace #1
 
 	iny ; skip inode
 	iny 
@@ -839,6 +840,7 @@ loop
 	bne loop
 	long m
 yes
+	;~DebugSetTrace #0
 	clc
 	rts
 
@@ -852,6 +854,8 @@ eos
 no8
 	long m
 no
+	;~DebugSetTrace #0
+
 	sec
 	rts
 
