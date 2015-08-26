@@ -808,7 +808,7 @@ strcmp	procname
 
 	; check if the name is even possible...
 
-	with dp
+	with dp, data
 
 	import target:GSString32
 
@@ -824,8 +824,9 @@ strcmp	procname
 	adc io_buffer+2
 	sta ptr+2
 
-	ldx target.length
 	ldy #0
+	ldx target.length
+
 	short m
 
 	; y = offset
@@ -835,20 +836,20 @@ loop
 	beq eos
 	cmp target.text,y
 	bne no8
-	iny 
+	iny
 	dex
-	bne loop
+	bpl loop
+
+eos
 	long m
+	; if y == target.length, this is a match.
+	cpy target.length
+	bne no
+
 yes
 	;~DebugSetTrace #0
 	clc
 	rts
-
-eos
-	long m
-	; end of string. if x = 1, it's a match!
-	dex
-	beq yes
 
 
 no8
