@@ -1,0 +1,188 @@
+
+
+	string asis
+
+	include 'gsos.equ'
+	include 'M16.Debug'
+	include 'fst.macros'
+
+	entry debugs16
+
+	MACRO
+&lab	_Long2Hex
+&lab	ldx #$230B
+	jsl $E10000
+	MEND
+
+	MACRO
+&lab	_Int2Hex
+&lab	ldx #$220B
+	jsl $E10000
+	MEND
+
+
+	MACRO
+&lab	s16_puts &str
+&lab	ldx #^(&str)
+	ldy #(&str)
+	cop $84
+	MEND
+
+
+debug	procname	export
+
+
+	pha
+	phx
+	phy
+
+	; dump info to sweet 16.
+
+	lda sweet_status
+	bmi exit
+	bne sweet_active
+
+	; check sweet status
+	; see tn 201
+
+	lda #0
+	short m
+	sta >$00c04f
+	lda >$00c04f	; emu id
+	tax
+	lda >$00c04f	; emu version
+	long m
+
+	cpx #$16
+	beq @ok
+	; not sweet 16
+	dec sweet_status
+	bra exit
+
+@ok
+	inc sweet_status
+
+sweet_active
+
+	jsr debugs16
+
+
+
+exit
+
+	ply
+	plx
+	pla
+	rts
+
+sweet_status
+	dc.w 0
+
+	endp
+
+debugs16 procname
+
+	with fst_parms
+
+	; debugger logging:
+	; x=^str
+	; y=str
+	; cop $84
+	; hex2string @ offset 12.
+
+
+	~Int2Hex <call_number,#p1+12,#4
+	~Long2Hex <param_blk_ptr,#p2+12,#8
+	~Int2Hex <dev1_num,#p3+12,#4
+	~Int2Hex <dev2_num,#p4+12,#4
+	~Long2Hex <fcr_ptr,#p5+12,#8
+	~Long2Hex <vcr_ptr,#p6+12,#8
+	~Int2Hex <path_flag,#p7+12,#4
+	~Int2Hex <span1,#p8+12,#4
+	~Int2Hex <span2,#p9+12,#4
+
+	s16_puts p1
+	s16_puts p2
+	s16_puts p3
+	s16_puts p4
+	s16_puts p5
+	s16_puts p6
+	s16_puts p7
+	s16_puts p8
+	s16_puts p9
+
+
+	; special case for strings...
+	lda path_flag
+	and #$4000
+	beq path2
+
+path1
+	; path 1 is valid
+	s16_puts s1
+
+
+	;brk $42
+
+	lda [path1_ptr]
+	beq path2
+	cmp #255
+	blt @ok
+	lda #255
+@ok
+	; copy to tmp
+	; a = count
+	phb
+	pha
+
+	lda <path1_ptr+2 ; src bank
+	and #$00ff
+	xba
+	ora #tmp>>16
+	sta |@m+1
+
+	; restore the length.
+	lda 1,s
+
+	;x = src
+	ldx <path1_ptr
+	inx
+	inx
+	; skip the length word.
+
+	; y = dest
+	ldy #tmp
+@m	mvn 0,0
+	plx
+	plb
+
+	; store the $0d, $00 terminator.
+	lda #$000a
+	sta tmp,x 
+
+	s16_puts tmp
+
+
+path2
+	; ... later
+
+	rts
+
+p1	dc.b 'Call     : $xxxx',$0a,0
+p2	dc.b 'Block    : $xxxxxxxx',$0a,0
+p3	dc.b 'Dev 1    : $xxxx',$0a,0
+p4	dc.b 'Dev 2    : $xxxx',$0a,0
+p5	dc.b 'FCR      : $xxxxxxxx',$0a,0
+p6	dc.b 'VCR      : $xxxxxxxx',$0a,0
+p7	dc.b 'Path Flag: $xxxx',$0a,0
+p8	dc.b 'Span1    : $xxxx',$0a,0
+p9	dc.b 'Span2    : $xxxx',$0a,0
+
+s1	dc.b 'Path 1   : ',0
+s2	dc.b 'Path 2   : ',0
+cr	dc.b $0a,0
+
+tmp	ds 257
+
+	endp
+	end

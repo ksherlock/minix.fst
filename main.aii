@@ -46,6 +46,8 @@
 	import disk_inode:v1_inode
 	import disk_super:v1_super
 
+	import debug
+
 header	proc
 
 	;
