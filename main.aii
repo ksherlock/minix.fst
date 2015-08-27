@@ -374,7 +374,7 @@ init_vcr proc export
 	sty my_vcr+2
 
 	ldy #vcr.device
-	lda [my_vcr]
+	lda [my_vcr],y
 	;sta device ; should probably just store in the dev_num.
 	sta dev_parms.dev_num
 
