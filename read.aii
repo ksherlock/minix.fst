@@ -61,7 +61,7 @@ zone		ds.l 1
 
 
 
-do_transfer_count proc
+do_transfer_count procname
 	with fst_parms, my_dp
 
 	lda transferCount
@@ -73,7 +73,7 @@ do_transfer_count proc
 	rts
 	endp
 
-do_data_buffer proc
+do_data_buffer procname
 	with fst_parms, my_dp
 
 	lda [param_blk_ptr],y
@@ -85,7 +85,7 @@ do_data_buffer proc
 	rts
 	endp
 
-do_request_count proc
+do_request_count procname
 	with fst_parms, my_dp
 
 	lda [param_blk_ptr],y
@@ -97,7 +97,7 @@ do_request_count proc
 	rts
 	endp
 
-do_cache_priority proc
+do_cache_priority procname
 	with fst_parms, my_dp, dp
 
 	lda [param_blk_ptr],y
