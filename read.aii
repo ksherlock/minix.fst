@@ -169,6 +169,18 @@ read	procname export
 	jsr init_vcr
 	jsr init_fcr
 
+	; zero-out transferCount, even if there's an error
+	; later
+	ldy call_class
+	lda tc_table,y
+	tay
+	lda #0
+	sta [param_blk_ptr],y
+	iny
+	iny
+	sta [param_blk_ptr],y
+
+	;brk $ea
 	;~DebugSetTrace #1
 
 	; can only read from regular files or links.
@@ -206,7 +218,7 @@ read	procname export
 	stz transferCount+2
 
 
-	ldy #fcr.mark+2
+	ldy #fcr.mark
 	lda [my_fcr],y
 	sta mark
 	iny
@@ -421,6 +433,17 @@ update_counts procname
 
 	with my_dp
 
+
+	; mark += count
+
+	lda count
+	clc
+	adc mark
+	sta mark
+	lda #0
+	adc mark+2
+	sta mark+2
+
 	;dataBuffer += count
 
 	lda count
@@ -437,7 +460,6 @@ update_counts procname
 	clc
 	adc transferCount
 	sta transferCount
-
 	lda #0
 	adc transferCount+2
 	sta transferCount+2
@@ -453,7 +475,7 @@ update_counts procname
 	sbc #0
 	sta requestCount+2
 
-
+	; a = requestCount+2
 	ora requestCount
 	beq done
 	jmp next_block
