@@ -11,6 +11,7 @@
 
 	include 'M16.Debug'
 
+	include 'p.equ'
 
 	import do_ignore
 	import init_fcr
@@ -29,9 +30,12 @@
 	entry read_direct_block
 	entry read_partial_block
 
+	entry getchar
+	entry build_nl_table
+
 	import disk_inode:v1_inode
 
-my_dp	record dp.__end
+my_dp		record dp.__end
 
 dataBuffer	ds.l 1
 requestCount	ds.l 1
@@ -45,12 +49,18 @@ block		ds.w 1 ; current block for reading.
 
 zone		ds.l 1
 
+nl_mask		ds.w 1
+
 		IF *>=$d4 THEN
 		AERROR 'dp -- too large.'
 		ENDIF
 
-	endr
+		endr
 
+data		record 0
+
+nl_table	ds.b 256
+		endr
 
 
 	;
@@ -346,6 +356,8 @@ tc
 	beq normal_read
 
 	jsr slow_read
+	bcs exit
+	bcc done
 
 normal_read
 
@@ -402,6 +414,7 @@ done
 	sta [my_fcr],y
 
 	; eventually, data_zone, data_block.
+
 
 	ldx call_class
 	lda tc_table,x
@@ -599,13 +612,182 @@ done
 	rts
 	endp
 
+	macro
+	fix_count
+	lda requestCount+2
+	bne @fini
+	lda requestCount
+	cmp count
+	bcs @fini
+	sta count
+@fini
+	endm
+
+build_nl_table	procname
+
+	with dp, my_dp
+	with data
+
+	lda #0
+	ldx #256-2
+zloop
+	sta nl_table,x
+	dex
+	dex
+	bpl zloop
+
+
+	ldy #fcr.mask
+	lda [my_fcr],y
+	sta nl_mask
+
+	ldy #fcr.newline_length
+	lda [my_fcr],y
+	tax
+
+	ldy #fcr.newline
+	lda [my_fcr],y
+	sta ptr
+	iny
+	iny
+	lda [my_fcr],y
+	sta ptr+2
+
+	txy
+	dey
+	ldx #0
+	short m
+nloop
+	lda [ptr],y
+	and nl_mask
+	tax
+	lda #$ff
+	sta nl_table,x
+	dey
+	bpl nloop
+	long m
+	rts
+	endp
+
 slow_read	procname
 
-	; todo ... 
-	lda #bad_store_type
-	sec
+	with dp, my_dp
 
-	rts 
+	; new-line processing is in effect.
+	; read a block, then copy each character at a time.
+
+	; first block may not be aligned.
+
+	jsr build_nl_table
+
+	lda mark
+	and #1024-1
+	beq aligned
+
+	lda block
+	jsr read_data_block
+	_rts.cs
+
+	; set up ptr.
+	lda mark
+	and #1024-1
+	clc
+	adc io_buffer
+	sta ptr
+	lda #0
+	adc io_buffer
+	sta ptr+2
+
+	; count = (1024 - mark) & 1023
+	lda #1024
+	sec
+	sbc mark
+	and #1024-1
+	sta count
+	; count = min(requestCount,count)
+	fix_count
+
+	jsr getchar
+	bcs exit
+	bvs done
+
+	lda requestCount
+	ora requestCount+2
+	beq done
+
+aligned
+
+	lda io_buffer
+	sta ptr
+	lda io_buffer+2
+	sta ptr
+
+@loop
+	; read aligned blocks.
+	lda block
+	jsr read_data_block
+	bcs exit
+
+	lda #1024
+	sta count
+	fix_count
+	jsr getchar
+	bcs exit
+	bvs done
+
+	lda requestCount
+	ora requestCount+2
+	bne @loop
+
+
+done
+	lda #0
+	clc
+exit
+	rts
+
+	endp
+
+
+	; copies up to count characters from ptr to dataBuffer
+	; returns v = 1 if eol found,
+	; returns v = 0 if eol not found.
+	; (c set from next_block)
+	; updates mark, transferCount, dataBuffer, requestCount, etc.
+	; 
+getchar	procname
+
+	with dp, my_dp
+	with data
+
+
+	ldy #0
+	short m
+bloop
+	lda [ptr],y
+	sta [dataBuffer],y
+	iny
+
+	and nl_mask
+	tax
+	lda nl_table,x
+	bne @eol
+@next
+	cpy count
+	bcc bloop
+	long m
+	sty count
+	jsr update_counts
+	clv
+	rts
+
+@eol
+	; end-of-line!
+	long m
+	sty count
+	jsr update_counts
+	sep #p.v
+	rts
 	endp
 
 	end
