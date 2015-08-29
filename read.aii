@@ -346,24 +346,21 @@ tc
 
 @ok
 
-	
 
+	jsr init_block
+	bcs exit
 
 	; we are ok to read!
 	; check for new line mode...
-	ldy #fcr.newline_length
-	lda [my_fcr],y
-	beq normal_read
+	jsr build_nl_table
+	bcs normal_read
 
 	jsr slow_read
-	bcs exit
 	bcc done
+	rtl
 
 normal_read
 
-
-	jsr init_block
-	_rts.cs
 
 	; currently limited to 7 zones, anyhow!
 
@@ -623,11 +620,24 @@ done
 @fini
 	endm
 
+	;
+	; builds a new-line table, if necessary.
+	; returns:
+	; c = 1 if new_line mode enabled.
+	; c = 0 if new_line mode disabled.
+
 build_nl_table	procname
 
 	with dp, my_dp
 	with data
 
+	ldy #fcr.mask
+	lda [my_fcr],y
+	sta nl_mask
+	bne @yes
+	sec
+	rts
+@yes
 	lda #0
 	ldx #256-2
 zloop
@@ -637,35 +647,35 @@ zloop
 	bpl zloop
 
 
-	ldy #fcr.mask
+	; newline list is a virtual pointer.
+	ldy #fcr.newline
 	lda [my_fcr],y
-	sta nl_mask
+	tax
+	iny
+	iny
+	lda [my_fcr],y
+	tay
+	jsl deref
+	stx ptr
+	sty ptr+2
 
 	ldy #fcr.newline_length
 	lda [my_fcr],y
-	tax
-
-	ldy #fcr.newline
-	lda [my_fcr],y
-	sta ptr
-	iny
-	iny
-	lda [my_fcr],y
-	sta ptr+2
-
-	txy
+	tay
 	dey
+
 	ldx #0
 	short m
 nloop
 	lda [ptr],y
-	and nl_mask
+	;and nl_mask
 	tax
 	lda #$ff
 	sta nl_table,x
 	dey
 	bpl nloop
 	long m
+	clc
 	rts
 	endp
 
@@ -678,7 +688,7 @@ slow_read	procname
 
 	; first block may not be aligned.
 
-	jsr build_nl_table
+	;jsr build_nl_table
 
 	lda mark
 	and #1024-1
@@ -769,6 +779,11 @@ bloop
 	iny
 
 	and nl_mask
+	; bit nl_mask+1 ; high bit set if 1-char nl 
+	; bpl @table
+	; cmp nl_char
+	; beq @eol
+	;@table
 	tax
 	lda nl_table,x
 	bne @eol
