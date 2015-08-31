@@ -1,0 +1,27 @@
+
+	string asis
+
+	include 'gsos.equ'
+	include 'minix.equ'
+	include 'records.equ'
+
+	include 'fst.equ'
+
+	include 'fst.macros'
+
+	include 'M16.Debug'
+
+	;
+	; flush.  Currently a no-op since this a read-only fst.
+	;
+	;
+
+
+flush	procname	export
+
+	lda #0
+	clc
+	rtl
+	endp
+
+	end

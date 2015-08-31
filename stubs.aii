@@ -8,7 +8,6 @@ stubs	proc
 	export create
 	export destroy
 	export erase_disk
-	export flush
 	export format
 	export get_dev_num
 	export judge_name
