@@ -4,7 +4,8 @@
 tables		record
 
 		export max_pcount
-			
+	
+		; this table is actually max+1		
 max_pcount
 		dc.w	0
 		dc.w	8				; ($01) Create
@@ -13,7 +14,7 @@ max_pcount
 		dc.w	4				; ($04) Change Path
 		dc.w	13				; ($05) Set File Info
 		dc.w	13				; ($06) Get File Info
-		dc.w	6				; ($07) Judge Name
+		dc.w	7				; ($07) Judge Name
 		dc.w	7				; ($08) Volume
 		dc.w	0				; ($09) Set Prefix
 		dc.w	0				; ($0A) Get Prefix
