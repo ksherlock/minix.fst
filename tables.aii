@@ -3,7 +3,6 @@
 
 tables		record
 
-		export min_pcount
 		export max_pcount
 			
 max_pcount
@@ -60,6 +59,11 @@ max_pcount
 		dc.w	0				; ($32) Dealloc Interrupt
 		dc.w	4				; ($33) FST Specific
 
+		;
+		; gs/os checks minimums.
+		;
+		if 0 then
+		export min_pcount
 min_pcount
 		dc.w	0
 		dc.w	1				; ($01) Create
@@ -114,6 +118,7 @@ min_pcount
 		dc.w	0				; ($32) Dealloc Interrupt
 		dc.w	1				; ($33) FST Specific
 
+		endif
 
 		endr
 

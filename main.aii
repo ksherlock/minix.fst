@@ -175,7 +175,7 @@ app_entry	procname
 	with dp
 	with fst_parms
 
-	import min_pcount
+	;import min_pcount
 	import max_pcount
 
 	phk
