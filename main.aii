@@ -80,12 +80,12 @@ fst_attr	equ	%0010100000000010	;attributes
 	dc.w fst_attr		; $2002	; flags -- format, block device, non-apple format
 	dc.w $0100		; version 1.0
 	dc.w 1024		; block size
-	dc.l $ffffffff		; max blocks/volume
+	dc.l $00010000		; max blocks/volume
 	dc.l $00000006		; min blocks/volume
 	dc.l $10081c00		; max file size
 	dc.l 0			; reserved
-	str.b 'minix'		; FST Name
-	str.b 'minix FST'	; FST Comment
+	str.b 'Minix'		; FST Name
+	str.b 'Minix FST'	; FST Comment
 	dc.w 0
 
 	; credits
