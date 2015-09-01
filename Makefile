@@ -2,7 +2,7 @@
 
 SOURCES = main.aii volume.aii get_file_info.aii \
 	open.aii get_dir_entry.aii get_mark.aii set_mark.aii get_eof.aii \
-	close.aii read.aii flush.aii \
+	close.aii read.aii flush.aii judge_name.aii \
 	id_disk.aii stubs.aii tables.aii device.aii params.aii globals.aii \
 	debug.aii
 

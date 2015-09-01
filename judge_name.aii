@@ -1,0 +1,329 @@
+
+	string asis
+
+	;
+	; class 1 only.
+	;
+	; "Read-only FSTs return an invalidFSTop error ($65)."
+	;
+	;
+
+	include 'gsos.equ'
+	include 'minix.equ'
+	include 'records.equ'
+
+	include 'fst.equ'
+
+	include 'fst.macros'
+
+	include 'M16.Debug'
+
+
+	entry check_name
+	entry do_name_flags
+	entry do_max_len
+	entry do_syntax
+
+	import do_ignore
+
+my_dp	record dp.__end
+
+name_type	ds.w 1
+name		ds.l 1
+name_flags	ds.w 1
+name_length	ds.w 1
+
+src		ds.l 1
+dest		ds.l 1
+
+	IF *>=$d4 THEN
+	AERROR 'dp -- too large.'
+	ENDIF
+	endr
+
+judge_name	procname	export
+
+
+	with fst_parms, dp, my_dp
+
+	; class 1 only.
+
+check_class
+
+	lda call_class
+	bne @class_ok
+
+	lda #bad_system_call
+	sec
+	rtl
+@class_ok
+
+	stz name_type
+	stz name
+	stz name+2
+	stz name_flags
+
+	ldy #JudgeNameRecGS.nameType
+	lda [param_blk_ptr],y
+	sta name_type
+	cmp #3+1
+	bcc @nt_ok
+	lda #parm_range_err
+	sec
+	rtl
+
+@nt_ok
+
+	; out-of-order handling of nameFlags.
+
+	lda [param_blk_ptr] ; pCount
+	cmp #5
+	blt @skipname
+
+	jsr check_name
+
+@skipname
+
+
+dispatcher
+
+	lda [param_blk_ptr] ; pcount
+	dec a
+	asl a ; x 2
+	asl a ; x 4
+	tax
+	dispatch judge_name_dcb_1
+
+
+	lda tool_error
+	cmp #1
+	rtl
+
+
+judge_name_dcb_1
+	with JudgeNameRecGS
+	;dc.w pCount, do_ignore
+	dc.w fileSysID, do_ignore
+	dc.w nameType, do_ignore
+	dc.w syntax, do_syntax
+	dc.w maxLen, do_max_len
+	dc.w name, do_ignore
+	dc.w nameFlags, do_name_flags
+	endwith
+
+
+
+	endp
+
+check_name	procname
+
+	with fst_parms, dp, my_dp
+
+
+get_name
+	ldy #JudgeNameRecGS.name
+	lda [param_blk_ptr],y
+	sta name
+	iny
+	iny
+	lda [param_blk_ptr],y
+	and #$00ff
+	sta name+2
+	ora name
+	bne @ok
+	rts
+@ok
+
+
+	; check the output buffer size. 
+	; although maximum size is 30, we only require a max size of 1
+	; (if name was blank)
+
+buffsize
+
+	lda [name]
+	cmp #3
+	bcc @bts
+	cmp #5+1
+	bcs @ok
+	lda #1
+	ldy #2
+	sta [name],y
+@bts
+	lda #buff_too_small
+	sta tool_error
+	rts
+@ok
+
+
+	; get the length...
+	ldy #2
+	lda [name],y
+	sta name_length
+
+	; check for and remove any invalid chars.
+cleanup
+	ldx name_length
+	bne @ok
+
+@null
+	; no name -> 'A'
+	ldy #2
+	lda #1
+	sta [name],y
+	iny
+	iny
+	short m
+	lda #'A'
+	sta [name],y
+	long m
+
+	lda #$2000
+	tsb name_flags
+	rts
+
+@ok
+	; x = name length.
+	ldy #4
+	short m
+@loop
+	lda [name],y
+	beq @bad
+	cmp #':'
+	beq @bad
+	cmp #'/'
+	beq @bad
+	bra @next
+@bad
+	lda #'.'
+	sta [name],y
+	lda #$80
+	tsb name_flags+1
+@next
+	iny
+	dex
+	bne @loop
+@done
+	long m
+
+length
+
+
+	lda name_length
+	cmp #30+1
+	bcs toolong
+	rts ; ok!
+
+
+toolong
+	; $4000 - name is too long.
+	lda #$4000
+	tsb name_flags
+
+	ldy #2
+	lda #30
+	sta [name],y 
+
+	; if < 40 chars, first 27 + '...'
+	lda name_length
+	cmp #40+1
+	bcs longlong
+	short m
+	lda #'.'
+	ldy #4+28-1
+	sta [name],y
+	iny
+	sta [name],y
+	iny
+	sta [name],y
+	long m
+	rts
+
+longlong
+	; first 13 chars, ..., last 14 chars
+
+
+	clc
+	lda #4+17 ; gsos buffer overhead
+	adc name
+	sta dest
+	lda #0
+	adc name+2
+	sta dest+2
+
+
+	lda name_length
+	sec
+	sbc #14-4
+	clc
+	adc name
+	sta src
+	lda #0
+	adc name+2
+	sta src+2
+
+
+	ldy #14-2
+@loop
+	lda [src],y
+	sta [dest],y
+	dey
+	dey
+	bpl @loop
+
+	ldy #4+14
+	short m
+	lda #'.'
+	sta [name],y
+	iny
+	sta [name],y
+	iny
+	sta [name],y
+	iny
+	long m
+
+	rts
+
+	endp
+
+
+do_name_flags	procname
+	with fst_parms, my_dp
+
+	lda name_flags
+	sta [param_blk_ptr],y
+	rts
+	endp
+
+do_max_len	proc
+
+	with fst_parms
+
+	lda #30
+	sta [param_blk_ptr],y
+	rts
+
+	endp
+
+do_syntax	procname
+	with fst_parms
+	
+	lda #syntax_str
+	sta [param_blk_ptr],y
+	iny
+	iny
+	lda #^syntax_str
+	sta [param_blk_ptr],y
+	rts
+
+syntax_str
+	dc.b ss_end-*
+	dc.b 'Minix names may contain any character except a colon (:), '
+	dc.b 'forward slash (/) and null. File names may be up to 30 '
+	dc.b 'characters long.'
+ss_end	equ *
+
+	endp
+
+
+	end
