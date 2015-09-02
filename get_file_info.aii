@@ -446,7 +446,7 @@ done
 
 	endp
 
-volume_by_name	procname
+volume_by_name	procname export
 	;
 	; extract the volume name from path1_ptr and find (or create) a vcr.
 	;
@@ -490,8 +490,8 @@ done
 	bcs no_vcr
 
 	; store it for later...
-	stx ptr
-	sty ptr+2
+	;stx ptr
+	;	sty ptr+2
 
 	jsl deref
 	stx my_vcr
@@ -523,12 +523,12 @@ done
 	; I suppose reading a block could alloc memory and invalidate the vcr...
 	;
 
-	ldx ptr
-	ldy ptr+2
+	;ldx ptr
+	;ldy ptr+2
 
-	jsl deref
-	stx my_vcr
-	sty my_vcr+2
+	;jsl deref
+	;stx my_vcr
+	;sty my_vcr+2
 
 	; check the volume name here...
 

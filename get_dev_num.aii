@@ -1,0 +1,57 @@
+
+	string asis
+
+	include 'gsos.equ'
+	include 'minix.equ'
+	include 'records.equ'
+
+	include 'fst.equ'
+
+	include 'fst.macros'
+
+	include 'M16.Debug'
+
+	import volume_by_name
+
+	;
+	; gs/os expands the path provided. that means we'll have
+	; an absolute path or a device number + relative path.
+	;
+
+get_dev_num	procname export
+
+	with dp, fst_parms
+
+	lda dev1_num
+	bne store
+
+	lda span1
+	cmp #30+1
+	bcs bps
+
+	jsr volume_by_name
+	bcs exit
+
+	lda dev_parms.dev_num
+
+store
+	; a = device number
+	ldx call_class
+	ldy table,x
+	sta [param_blk_ptr],y
+	lda tool_error
+	cmp #1
+exit
+	rtl
+
+bps
+	lda #bad_path_syntax
+	sec
+	rtl
+
+table
+	dc.w DevNumRec.devNum, DevNumRecGS.devNum
+
+	endp
+
+	end

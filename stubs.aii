@@ -9,7 +9,6 @@ stubs	proc
 	export destroy
 	export erase_disk
 	export format
-	export get_dev_num
 	export set_eof
 	export set_file_info
 	export write

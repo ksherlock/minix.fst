@@ -228,3 +228,14 @@ displacement	DS.L	1
 		end_struct
 
 
+DevNumRecGS	begin_struct
+pCount		DS.W	1
+devName		DS.L	1
+devNum		DS.W	1
+		end_struct
+
+
+DevNumRec	begin_struct
+devName		DS.B 4
+devNum		DS.B 2
+		end_struct
