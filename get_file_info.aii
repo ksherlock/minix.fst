@@ -91,30 +91,34 @@ exit
 	import do_eof, do_blocks, do_r_eof, do_r_blocks
 
 file_info_dcb_0
-	dc.w $00, do_ignore ; pathname
-	dc.w $04, do_access
-	dc.w $06, do_file_type
-	dc.w $08, do_aux_type
-	dc.w $0c, do_storage_type
-	dc.w $0e, do_create_date_time_0
-	dc.w $12, do_mod_date_time_0
-	dc.w $16, do_blocks
+	with FileRec
+	dc.w pathname, do_ignore ; pathname
+	dc.w fAccess, do_access
+	dc.w fileType, do_file_type
+	dc.w auxType, do_aux_type
+	dc.w storageType, do_storage_type
+	dc.w createDate, do_create_date_time_0
+	dc.w modDate, do_mod_date_time_0
+	dc.w blocksUsed, do_blocks
+	endwith
 file_info_dcb_0_size equ *-file_info_dcb_0
 
 file_info_dcb_1
+	with FileInfoRecGS
 	;dc.w $00, do_ignore	; pCount
-	dc.w $02, do_ignore ; pathname
-	dc.w $06, do_access
-	dc.w $08, do_file_type
-	dc.w $0a, do_aux_type
-	dc.w $0e, do_storage_type
-	dc.w $10, do_create_date_time
-	dc.w $18, do_mod_date_time
-	dc.w $20, do_option_list
-	dc.w $24, do_eof
-	dc.w $28, do_blocks
-	dc.w $2c, do_r_eof
-	dc.w $30, do_r_blocks
+	dc.w pathname, do_ignore ; pathname
+	dc.w access, do_access
+	dc.w fileType, do_file_type
+	dc.w auxType, do_aux_type
+	dc.w storageType, do_storage_type
+	dc.w createDateTime, do_create_date_time
+	dc.w modDateTime, do_mod_date_time
+	dc.w optionList, do_option_list
+	dc.w eof, do_eof
+	dc.w blocksUsed, do_blocks
+	dc.w resourceEOF, do_r_eof
+	dc.w resourceBlocks, do_r_blocks
+	endwith
 	endp
 
 
