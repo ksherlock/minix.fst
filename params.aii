@@ -341,6 +341,7 @@ do_mod_date_time_0
 	beq null
 
 	phx ; save
+	phy ; save
 
 	pha ; result space
 	pha 
@@ -363,19 +364,20 @@ do_mod_date_time_0
 	phx
 
 	; date ptr
-	tya
-	clc
-	adc param_blk_ptr
-	tax
-	lda #0
-	adc param_blk_ptr+2
-	pha
-	phx
+	pea buffer>>16
+	pea buffer
 
 	_ConvSeconds
 	pla
 	pla
 
+	ply
+	lda buffer
+	sta [param_blk_ptr],y
+	iny
+	iny
+	lda buffer+2
+	sta [param_blk_ptr],y
 	plx
 	rts
 
@@ -393,6 +395,11 @@ null
 	sta [param_blk_ptr],y
 
 	rts
+
+	; ConvSeconds needs an 8-byte buffer, even when the output is < 8
+	; bytes....
+
+buffer	ds.b 8
 
 	endp
 
