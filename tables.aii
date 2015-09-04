@@ -28,7 +28,7 @@ max_pcount
 		dc.w	6				; ($12) Read
 		dc.w	6				; ($13) Write
 		dc.w	2				; ($14) Close
-		dc.w	2				; ($15) Flush
+		dc.w	3				; ($15) Flush
 		dc.w	4				; ($16) Set Mark
 		dc.w	3				; ($17) Get Mark
 		dc.w	4				; ($18) Set EOF
@@ -43,8 +43,8 @@ max_pcount
 		dc.w	0				; ($21) Get Last Dev
 		dc.w	0				; ($22) Read Block
 		dc.w	0				; ($23) Write Block
-		dc.w	5				; ($24) Format
-		dc.w	5				; ($25) Erase Disk
+		dc.w	7				; ($24) Format
+		dc.w	7				; ($25) Erase Disk
 		dc.w	0				; ($26)
 		dc.w	0				; ($27) Get Name
 		dc.w	0				; ($28) Get Boot Vol
