@@ -193,7 +193,6 @@ app_entry	procname
 	jsr debug
 	ENDIF
 
-
 	
 	; check the class 0 or 1 only.
 	cpy #2+1
@@ -264,12 +263,12 @@ app_entry	procname
 @bad_system_call
 	lda #bad_system_call
 	sec
-	rtl
+	jml sys_exit
 
 @invalid_pcount
 	lda #invalid_pcount
 	sec
-	rtl
+	jml sys_exit
 
 
 
