@@ -425,6 +425,11 @@ next
 
 done
 
+	; - 2 for . and ..
+	dec dirent_entry
+	dec dirent_entry
+
+
 	; also reset the displacement to 0.
 	lda #0
 	ldy #fcr.dirent_entry
@@ -634,6 +639,10 @@ exit
 ; therefore the only special case is dirent_entry == 0 (since displacement 1 -> read entry 0)
 ;
 ;
+; 9/4/2015 -- The first two entries (. and ..) should be skipped.
+;
+;
+
 find_absolute_dirent procname
 	with data
 
@@ -665,6 +674,10 @@ find_next_dirent proc
 @first
 	dec displacement
 	bmi eod
+	; set dirent_offset = dirent_size * 2 to skip over . and ..
+	lda dirent_size
+	asl a ; x 2
+	sta dirent_offset
 @ok
 
 	; make sure dir not empty (should never happen...)
