@@ -112,7 +112,7 @@ do_cache_priority procname
 
 	lda [param_blk_ptr],y
 	; 0 or 1 only.
-	cmp #1
+	cmp #2
 	bcs pre
 	sta dev_parms.dev_cache_pr
 	rts
