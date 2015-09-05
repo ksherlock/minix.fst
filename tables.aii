@@ -58,7 +58,7 @@ max_pcount
 		dc.w	0				; ($30) D_WRITE
 		dc.w	0				; ($31) Alloc Interrupt
 		dc.w	0				; ($32) Dealloc Interrupt
-		dc.w	4				; ($33) FST Specific
+		dc.w	0				; ($33) FST Specific
 
 		;
 		; gs/os checks minimums.
