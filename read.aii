@@ -57,7 +57,7 @@ nl_mask		ds.w 1
 
 		endr
 
-data		record 0
+data		record
 
 nl_table	ds.b 256
 		endr
@@ -623,8 +623,8 @@ done
 	;
 	; builds a new-line table, if necessary.
 	; returns:
-	; c = 1 if new_line mode enabled.
-	; c = 0 if new_line mode disabled.
+	; c = 0 if new_line mode enabled.
+	; c = 1 if new_line mode disabled.
 
 build_nl_table	procname
 
@@ -705,7 +705,7 @@ slow_read	procname
 	adc io_buffer
 	sta ptr
 	lda #0
-	adc io_buffer
+	adc io_buffer+2
 	sta ptr+2
 
 	; count = (1024 - mark) & 1023
@@ -730,7 +730,7 @@ aligned
 	lda io_buffer
 	sta ptr
 	lda io_buffer+2
-	sta ptr
+	sta ptr+2
 
 @loop
 	; read aligned blocks.
