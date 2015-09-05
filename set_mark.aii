@@ -95,7 +95,7 @@ absolute
 	lda displacement
 	sta mark
 	lda displacement+2
-	sta mark
+	sta mark+2
 	bra check
 eof_minus
 	; mark = eof - displacement
