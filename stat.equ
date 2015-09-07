@@ -1,0 +1,33 @@
+
+;
+; GNO stat structure.
+;
+
+gno_stat	record 0
+
+st_dev		ds.w 1
+st_ino		ds.l 1
+st_mode		ds.w 1
+st_nlink	ds.w 1
+st_uid		ds.w 1
+st_gid		ds.w 1
+st_rdev		ds.w 1
+st_size		ds.l 1
+
+st_atime	ds.l 1
+st_spare1	ds.w 1
+st_mtime	ds.l 1
+st_spare2	ds.w 1
+st_ctime	ds.l 1
+st_spare3	ds.w 1
+
+st_blksize	ds.l 1
+st_blocks	ds.l 1
+
+st_spare	ds.l 2
+
+__sizeof	equ *
+
+		endr
+
+		end
