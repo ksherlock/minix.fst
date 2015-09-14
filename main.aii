@@ -78,7 +78,7 @@ fst_attr	equ	%0010100000000010	;attributes
 	dc.l sys_entry
 	dc.w fst_id
 	dc.w fst_attr		; $2002	; flags -- format, block device, non-apple format
-	dc.w $0100		; version 1.0
+	dc.w $8001		; version 0.1, prototype.
 	dc.w 1024		; block size
 	dc.l $00010000		; max blocks/volume
 	dc.l $00000006		; min blocks/volume
@@ -89,7 +89,7 @@ fst_attr	equ	%0010100000000010	;attributes
 	dc.w 0
 
 	; credits
-	str.b $0d,'Minix FST by Kelvin W Sherlock, 2014',$0d
+	str.b $0d,'Minix FST by Kelvin W Sherlock, 2014/2025',$0d
 
 	endp
 
