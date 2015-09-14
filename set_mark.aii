@@ -39,6 +39,21 @@ set_mark	procname export
 	jsr init_fcr
 
 
+	; can only read from regular files or links.
+	lda disk_inode.mode
+	and #S_IFMT
+	cmp #S_IFREG
+	beq @ok
+	cmp #S_IFLNK
+	beq @ok
+
+	lda #bad_store_type
+	sec
+	rtl
+
+@ok
+
+
 	ldy #fcr.mark
 	lda [my_fcr],y
 	sta mark
