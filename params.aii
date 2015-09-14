@@ -198,56 +198,45 @@ do_blocks proc export
 	with dp,fst_parms
 	with v1
 
-	; minix supports sparse blocks.  should just guess based on size...
+	; minix supports sparse blocks.  Just guess based on size...
 
-	phx ; save
-	phy ; save
+	; size + 1023
 
-	; 7 direct blocks, 1 indirect block, 1 double indirect block.
-	ldx #0
-	ldy #0 ; count
-@loop
-	lda disk_inode.zone,x
-	beq @next
-	iny
-@next
-	inx
-	inx
-	cpx #NR_DZONES*2
-	bcc @loop
+	lda disk_inode.size
+	clc
+	adc #1023
+	sta tmp
 
-	; y is number of direct blocks.
+	lda disk_inode.size+2
+	adc #0
+	sta tmp+2
 
-	; check for indirect block...
-	lda disk_inode.zone + NR_DZONES * 2
-	beq dib
+	; divided by 256
+	lda tmp+1
+	sta tmp
+	lda tmp+3
+	and #$00ff
+	sta tmp+2
 
-;
-; count up indirect blocks...
-;
-	iny
+	; divide by 4
+	lsr a
+	ror tmp
+	lsr a
+	ror tmp
+	sta tmp+2
 
-dib
-	; check for double indirect block
-	lda disk_inode.zone + (NR_DZONES + 1) * 2
-	beq store
-;
-; count up double indirect blocks....
-;
-
-	iny
-
-store
-	tya
-	ply
+	lda tmp
 	sta [param_blk_ptr],y
 	iny
 	iny
-	lda #0
+	lda tmp+2
 	sta [param_blk_ptr],y
 
-	plx ; restore
-	rts
+	rts	
+
+tmp	ds.l 1
+	ds.b 1
+
 	endp
 
 
