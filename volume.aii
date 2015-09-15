@@ -184,10 +184,19 @@ do_total_blocks	proc
 do_free_blocks	proc
 	; load the  zmaps and count them up...
 	; someday.
-	with fst_parms
+	with fst_parms, dp
 
+	phy
+	ldy #vcr.free_blocks
+	lda [my_vcr],y
+	ply
+
+	sta [param_blk_ptr],y
+	iny
+	iny
 	lda #0
 	sta [param_blk_ptr],y
+
 	rts
 	endp
 

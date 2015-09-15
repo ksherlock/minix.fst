@@ -28,8 +28,11 @@
 	entry check_super
 	entry build_vcr
 
-	import device_read
+	entry calc_free_blocks
+	entry bitcount
 
+	import device_read
+	import read_data_block
 
 id_disk	procname	export
 
@@ -262,6 +265,10 @@ create_vcr
 	ldy #vcr.first_inode_block
 	sta [my_vcr],y
 
+
+
+
+
 vname
 
 	; also need to copy over the volume name...
@@ -284,6 +291,11 @@ vname
 	long m
 
 
+	; store free blocks in the vcr?
+	jsr calc_free_blocks
+	bcs exit
+
+
 	; ~DebugHexDump <my_vcr,#vcr.__sizeof 
 
 	lda #0
@@ -298,6 +310,98 @@ default_name
 	str.w 'minix'
 
 	endp
+
+calc_free_blocks	procname
+
+	with dp
+
+
+	stz count
+
+	ldy #vcr.first_inode_block
+	lda [my_vcr],y
+	sta endb
+
+
+	ldy #vcr.first_zmap_block
+	lda [my_vcr],y
+	sta block
+
+loop
+	jsr read_data_block
+	bcs error
+
+	jsr bitcount
+	clc
+	adc count
+	sta count
+
+	lda block
+	inc a
+	cmp endb
+	bcc loop
+	; done!
+	ldy #vcr.free_blocks
+	lda count
+	sta [my_vcr],y
+	lda #0
+	clc
+error
+	rts
+
+block	ds.w 1
+endb	ds.w 1
+count	ds.w 1
+	endp
+
+bitcount	procname
+	; count up a page of bitmaps...
+	; count the 0s, not the 1s.
+
+	with dp
+
+
+	ldy #1024-2
+	ldx #0
+
+loop
+	lda [io_buffer],y
+	beq add16
+	eor #$ffff
+	beq next
+
+	; now inverted, so count the 1s.
+
+	; kernighan / wegner
+	; 1 pass per bit.
+	pha
+bloop
+	dec a
+	and 1,s
+	beq bdone
+	inx
+	sta 1,s
+	bra bloop
+bdone
+	pla
+	bra next
+
+add16
+	txa
+	clc
+	adc #16
+	tax
+
+next
+	dey
+	dey
+	bpl loop
+
+	txa
+	rts
+
+	endp
+
 
 	end
 
