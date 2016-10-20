@@ -156,7 +156,6 @@ fileSysID	DS.W	1
 blockSize	DS.W	1
 characteristics	ds.w	1
 deviceID	ds.w	1
-sizeof		equ *
 		end_struct
 
 
@@ -166,7 +165,6 @@ volName		DS.B 4
 totalBlocks	DS.B 4
 freeBlocks	DS.B 4
 fileSysID	DS.B 2
-sizeof		equ *
 		end_struct
 
 
