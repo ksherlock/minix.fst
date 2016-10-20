@@ -190,7 +190,7 @@ get_dir_entry_dcb_0
 	dc.w $02, do_flags
 	dc.w $04, do_ignore	; base
 	dc.w $06, do_ignore	; displacement
-	dc.w $08, do_name_buffer_0	;
+	dc.w $08, do_name_buffer_1	; uses gs/os output string!
 	dc.w $0c, do_entry_num
 	dc.w $0e, do_file_type
 	dc.w $10, do_eof
