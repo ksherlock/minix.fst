@@ -66,8 +66,8 @@ nl_table	ds.b 256
 	;
 	; read logic...
 	; if (mark & 1024-1) read partial block
-	; while (transferCount >= 1024) direct read into dataBudder
-	; if (transfterCount & 1024 - 1) read partial block
+	; while (transferCount >= 1024) direct read into dataBuffer
+	; if (transferCount & 1024 - 1) read partial block
 
 
 
